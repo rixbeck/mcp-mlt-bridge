@@ -6,6 +6,7 @@ This document provides detailed information about the MCP-LMT-Bridge API, includ
 
 ### 1. List Extensions
 - **Command**: `mcp.lmt.listExtensions`
+- **Display Name**: `MCP-LMT: List Extensions`
 - **Description**: Lists all LanguageModelTools-compatible extensions
 - **Parameters**: None
 - **Returns**: Array of Extension objects
@@ -20,6 +21,7 @@ interface Extension {
 
 ### 2. Get Tool Information
 - **Command**: `mcp.lmt.getToolInfo`
+- **Display Name**: `MCP-LMT: Get Tool Info`
 - **Parameters**: 
   - `toolId: string` - Unique identifier of the tool
 - **Returns**: Detailed tool information
@@ -37,6 +39,7 @@ interface ToolInfo {
 
 ### 3. Execute Tool
 - **Command**: `mcp.lmt.executeTool`
+- **Display Name**: `MCP-LMT: Execute Tool`
 - **Parameters**:
 ```typescript
 interface ExecuteToolParams {
@@ -95,88 +98,52 @@ interface ReturnTypeDefinition {
 
 ## Response Formats
 
-### Success Response
+### Response Format
+
+#### Success Response
 ```json
 {
-    "status": "success",
-    "data": {
-        "result": "Operation completed",
-        "metadata": {
-            "timestamp": "2025-05-08T17:45:56Z",
-            "toolId": "example.tool",
-            "execution": {
-                "duration": "120ms",
-                "memory": "5MB"
-            }
-        }
+    "jsonrpc": "2.0",
+    "id": "request-123",
+    "result": {
+        // Tool-specific result data
     }
 }
 ```
 
-### Error Response
+#### Error Response
 ```json
 {
-    "status": "error",
+    "jsonrpc": "2.0",
+    "id": "request-123",
     "error": {
-        "code": "INVALID_PARAMS",
-        "message": "Invalid parameters provided",
-        "details": {
-            "param": "input",
-            "expected": "string",
-            "received": "number"
-        },
-        "timestamp": "2025-05-08T17:45:56Z"
+        "code": -32600,
+        "message": "Invalid request"
     }
 }
 ```
 
-## Error Codes
+## JSON-RPC Error Codes
 
-| Code | Description | HTTP Status |
-|------|-------------|-------------|
-| `INVALID_PARAMS` | Invalid parameters provided | 400 |
-| `TOOL_NOT_FOUND` | Requested tool not found | 404 |
-| `EXECUTION_ERROR` | Tool execution failed | 500 |
-| `TIMEOUT_ERROR` | Execution timeout exceeded | 408 |
-| `AUTH_ERROR` | Authentication failed | 401 |
-| `RATE_LIMIT` | Rate limit exceeded | 429 |
+| Code | Description |
+|------|-------------|
+| -32700 | Parse error |
+| -32600 | Invalid request |
+| -32601 | Method not found |
+| -32602 | Invalid params |
+| -32603 | Internal error |
 
-## Webhook Events
+## Session Management
 
-### Event Types
-1. **tool.executed**
-   - Triggered when a tool execution completes
-   ```typescript
-   interface ToolExecutedEvent {
-       type: 'tool.executed';
-       toolId: string;
-       status: 'success' | 'error';
-       timestamp: string;
-       duration: number;
-       result: any;
-   }
-   ```
+The MCP server implements session management with the following characteristics:
+- Sessions are created upon WebSocket connection
+- Session timeout: 30 minutes of inactivity
+- Sessions are automatically cleaned up every minute
+- Each session has a unique ID format: `session_[random]_[timestamp]`
 
-2. **extension.registered**
-   - Triggered when a new extension is registered
-   ```typescript
-   interface ExtensionRegisteredEvent {
-       type: 'extension.registered';
-       extensionId: string;
-       timestamp: string;
-       tools: string[];
-   }
-   ```
+## Connection Handling
 
-## Rate Limiting
-
-The API implements rate limiting with the following default limits:
-- 100 requests per minute per client
-- 1000 requests per hour per client
-- Maximum execution time: 30 seconds per request
-
-Rate limit headers are included in responses:
-```http
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1683565556
+- Server runs on port 3000 by default (configurable)
+- WebSocket protocol for real-time communication
+- Automatic connection error handling and recovery
+- Clean session termination on connection close

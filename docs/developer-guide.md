@@ -7,8 +7,8 @@ This guide provides detailed information for developers who want to work on the 
 ### Prerequisites
 1. Install required software:
    ```bash
-   # Install Node.js (16.x or higher)
-   curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+   # Install Node.js (22.14.0 or higher)
+   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
    sudo apt-get install -y nodejs
 
    # Install development tools
@@ -18,7 +18,7 @@ This guide provides detailed information for developers who want to work on the 
 
 2. Clone the repository:
    ```bash
-   git clone https://github.com/org/mcp-lmt-bridge.git
+   git clone https://github.com/username/mcp-lmt-bridge.git
    cd mcp-lmt-bridge
    ```
 
@@ -53,8 +53,7 @@ mcp-lmt-bridge/
 ├── src/
 │   ├── extension.ts           # Extension entry point
 │   ├── server/
-│   │   ├── mcpServer.ts      # MCP server implementation
-│   │   └── protocol.ts       # Protocol definitions
+│   │   └── mcpServer.ts      # MCP server implementation
 │   ├── registry/
 │   │   └── extensionRegistry.ts  # Extension management
 │   ├── executor/
@@ -72,12 +71,12 @@ mcp-lmt-bridge/
 
 1. Development build:
    ```bash
-   npm run build
+   npm run compile
    ```
 
 2. Production build:
    ```bash
-   npm run build:prod
+   npm run package
    ```
 
 3. Watch mode for development:
@@ -85,21 +84,21 @@ mcp-lmt-bridge/
    npm run watch
    ```
 
+4. Create VSIX package:
+   ```bash
+   npm run package:vsix
+   ```
+
 ### Running Tests
 
-1. Unit tests:
+1. Run all tests:
    ```bash
-   npm run test:unit
+   npm run test
    ```
 
-2. Integration tests:
+2. Run tests in watch mode:
    ```bash
-   npm run test:integration
-   ```
-
-3. All tests with coverage:
-   ```bash
-   npm run test:coverage
+   npm run test:watch
    ```
 
 ### Debugging

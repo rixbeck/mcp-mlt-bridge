@@ -10,16 +10,45 @@
 ## Installation Guide
 
 ### Prerequisites
-- Visual Studio Code 1.85.0 or higher
-- Node.js 16+
+- Visual Studio Code ^1.85.0 or higher
+- Node.js ^22.14.0
 - npm or yarn package manager
 
 ### Installation Steps
+
+#### From VS Code Marketplace (Not yet available)
 1. Open Visual Studio Code
 2. Go to the Extensions view (`Ctrl+Shift+X` or `Cmd+Shift+X`)
 3. Search for "MCP-LMT-Bridge"
 4. Click Install
 5. Reload VSCode when prompted
+
+#### From VSIX File (Development)
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/username/mcp-lmt-bridge.git
+   cd mcp-lmt-bridge
+   ```
+
+2. Install dependencies and build:
+   ```bash
+   npm install
+   npm run clean
+   npm run compile
+   npm run package:vsix
+   ```
+
+3. Install the extension:
+   ```bash
+   code --install-extension mcp-lmt-bridge-0.1.0.vsix
+   ```
+
+4. Verify installation:
+   ```bash
+   code --list-extensions --show-versions | grep mcp-lmt-bridge
+   ```
+
+5. If the extension is not visible, check the troubleshooting guide for solutions.
 
 ### Configuration
 Create or modify `.vscode/settings.json` in your workspace:
@@ -28,8 +57,8 @@ Create or modify `.vscode/settings.json` in your workspace:
 {
     "mcp-lmt-bridge": {
         "serverPort": 3000,
-        "logLevel": "info",
-        "maxConnections": 10
+        "trace.server": "off" | "messages" | "verbose",
+        "logLevel": "error" | "warn" | "info" | "debug"
     }
 }
 ```
@@ -38,18 +67,43 @@ Create or modify `.vscode/settings.json` in your workspace:
 
 ### Basic Usage
 
-1. **Accessing MCP Tools**
-   ```bash
-   # List available tools
-   > mcp.lmt.listExtensions
-   
-   # Get tool details
-   > mcp.lmt.getToolInfo example.tool
-   ```
+1. **Opening the Command Palette**
+   - Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
+   - The Command Palette will appear at the top of the VS Code window
 
-2. **Executing Commands**
+2. **Available Commands**
+   Type "MCP" in the Command Palette to see available commands:
+
+   - `MCP-LMT: List Extensions` - Lists all available MCP-enabled extensions
+   - `MCP-LMT: Get Tool Info` - Shows information about a specific tool
+   - `MCP-LMT: Execute Tool` - Runs a specified MCP tool
+
+3. **Using the Commands**
+   a. List Extensions:
+   - Open Command Palette
+   - Type `MCP-LMT: List Extensions`
+   - Press Enter to see available extensions
+
+   b. Get Tool Info:
+   - Open Command Palette
+   - Type `MCP-LMT: Get Tool Info`
+   - Select or enter the extension ID when prompted
+
+   c. Execute Tool:
+   - Open Command Palette
+   - Type `MCP-LMT: Execute Tool`
+   - Follow the prompts to select tool and enter parameters
+
+4. **Programmatic Usage**
+   For extension developers:
    ```typescript
-   // Example command execution
+   // List extensions
+   const extensions = await vscode.commands.executeCommand('mcp.lmt.listExtensions');
+
+   // Get tool info
+   const toolInfo = await vscode.commands.executeCommand('mcp.lmt.getToolInfo', 'example.tool');
+
+   // Execute tool
    const result = await vscode.commands.executeCommand('mcp.lmt.executeTool', {
        toolId: 'example.tool',
        params: { param1: 'value' }
@@ -144,7 +198,7 @@ Error Response:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/org/mcp-lmt-bridge.git
+   git clone https://github.com/username/mcp-lmt-bridge.git
    cd mcp-lmt-bridge
    ```
 
@@ -155,7 +209,9 @@ Error Response:
 
 3. Build the extension:
    ```bash
-   npm run build
+   npm run compile
+   # or for production build:
+   npm run package
    ```
 
 ### Architecture Overview

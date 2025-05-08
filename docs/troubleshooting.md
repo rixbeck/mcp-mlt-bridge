@@ -4,6 +4,38 @@ This guide helps you diagnose and resolve common issues with the MCP-LMT-Bridge 
 
 ## Common Issues
 
+### Installation Issues
+
+#### Issue: Extension Not Visible After Installation
+**Symptoms:**
+- Extension doesn't appear in `code --list-extensions`
+- Extension not visible in VS Code Extensions panel
+- Extension not activated on startup
+
+**Solutions:**
+1. Verify installation:
+   ```bash
+   # Remove existing installation
+   code --uninstall-extension mcp-lmt-bridge
+
+   # Clean install
+   npm run clean
+   npm run compile
+   npm run package:vsix
+   code --install-extension mcp-lmt-bridge-0.1.0.vsix
+   ```
+
+2. Check extension manifest:
+   - Ensure `onStartupFinished` activation event is present in package.json
+   - Verify extension ID matches: "mcp-lmt-bridge"
+   - Check VS Code version compatibility (^1.85.0)
+
+3. Review VS Code logs:
+   ```bash
+   # Windows: %APPDATA%\Code\logs\extension-host.log
+   # macOS/Linux: ~/.vscode/logs/extension-host.log
+   ```
+
 ### Connection Problems
 
 #### Issue: Unable to Connect to MCP Server
@@ -22,8 +54,11 @@ This guide helps you diagnose and resolve common issues with the MCP-LMT-Bridge 
 2. Verify port configuration:
    ```json
    {
-       "mcp-lmt-bridge.serverPort": 3000,
-       "mcp-lmt-bridge.autoReconnect": true
+       "mcp-lmt-bridge": {
+           "serverPort": 3000,
+           "trace.server": "verbose",
+           "logLevel": "debug"
+       }
    }
    ```
 
@@ -48,13 +83,9 @@ This guide helps you diagnose and resolve common issues with the MCP-LMT-Bridge 
    }
    ```
 
-2. Increase timeout settings:
-   ```json
-   {
-       "mcp-lmt-bridge.connectionTimeout": 30000,
-       "mcp-lmt-bridge.requestTimeout": 60000
-   }
-   ```
+2. Check session timeout settings in server:
+   * Default session timeout: 30 minutes
+   * Sessions are cleaned up every minute
 
 ### Tool Execution Issues
 
@@ -97,21 +128,9 @@ This guide helps you diagnose and resolve common issues with the MCP-LMT-Bridge 
 - CPU spikes
 
 **Solutions:**
-1. Enable performance monitoring:
-   ```json
-   {
-       "mcp-lmt-bridge.performance.monitoring": true,
-       "mcp-lmt-bridge.performance.sampling": 1000
-   }
-   ```
-
-2. Optimize resource usage:
-   ```json
-   {
-       "mcp-lmt-bridge.maxConcurrentExecutions": 5,
-       "mcp-lmt-bridge.maxQueueSize": 100
-   }
-   ```
+1. Check system resources and memory usage
+2. Monitor connection status and session management
+3. Review WebSocket server logs for potential issues
 
 ### Integration Issues
 
@@ -147,28 +166,15 @@ This guide helps you diagnose and resolve common issues with the MCP-LMT-Bridge 
    }
    ```
 
-## Error Codes Reference
+## JSON-RPC Error Codes
 
-### System Errors (1xxx)
 | Code | Description | Solution |
 |------|-------------|----------|
-| 1001 | Server startup failed | Check port availability |
-| 1002 | Configuration error | Verify settings.json |
-| 1003 | Resource exhaustion | Adjust resource limits |
-
-### Protocol Errors (2xxx)
-| Code | Description | Solution |
-|------|-------------|----------|
-| 2001 | Invalid message format | Check message structure |
-| 2002 | Protocol version mismatch | Update extension |
-| 2003 | Authentication failed | Verify credentials |
-
-### Execution Errors (3xxx)
-| Code | Description | Solution |
-|------|-------------|----------|
-| 3001 | Tool not found | Verify tool ID |
-| 3002 | Invalid parameters | Check parameter types |
-| 3003 | Execution timeout | Adjust timeout settings |
+| -32700 | Parse error | Check JSON message format |
+| -32600 | Invalid request | Verify request structure and JSON-RPC version |
+| -32601 | Method not found | Check method name and available commands |
+| -32602 | Invalid params | Verify parameter types and required fields |
+| -32603 | Internal error | Check server logs for details |
 
 ## Diagnostic Tools
 
@@ -208,53 +214,7 @@ tcpdump -i lo port 3000
 wscat -c ws://localhost:3000
 ```
 
-## Performance Tuning
+## Support
 
-### Memory Optimization
-```json
-{
-    "mcp-lmt-bridge.memory": {
-        "maxHeapSize": "512M",
-        "gcInterval": 300000
-    }
-}
-```
-
-### Connection Pooling
-```json
-{
-    "mcp-lmt-bridge.pool": {
-        "minSize": 5,
-        "maxSize": 20,
-        "idleTimeout": 60000
-    }
-}
-```
-
-### Caching Configuration
-```json
-{
-    "mcp-lmt-bridge.cache": {
-        "enabled": true,
-        "ttl": 300000,
-        "maxSize": 1000
-    }
-}
-```
-
-## Support Channels
-
-1. **GitHub Issues**
-   - Report bugs
-   - Request features
-   - Share improvements
-
-2. **Documentation**
-   - [Online documentation](https://example.com/docs)
-   - [API reference](https://example.com/api)
-   - [FAQ](https://example.com/faq)
-
-3. **Community**
-   - [Discord server](https://discord.gg/example)
-   - [Stack Overflow tag](https://stackoverflow.com/questions/tagged/mcp-lmt-bridge)
-   - [GitHub Discussions](https://github.com/org/mcp-lmt-bridge/discussions)
+Report issues and contribute on GitHub:
+[https://github.com/username/mcp-lmt-bridge](https://github.com/username/mcp-lmt-bridge)
