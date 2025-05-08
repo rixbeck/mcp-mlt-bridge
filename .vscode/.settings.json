@@ -1,0 +1,7 @@
+{
+    "mcp-lmt-bridge": {
+        "serverPort": 3000,
+        "trace.server": "verbose",
+        "logLevel": "info"
+    }
+}
