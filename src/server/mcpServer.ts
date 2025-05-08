@@ -3,6 +3,10 @@ import * as vscode from 'vscode';
 import { ExtensionRegistry } from '../registry/extensionRegistry';
 import { CommandExecutor } from '../executor/commandExecutor';
 
+/**
+ * Represents a JSON-RPC request in the Model Context Protocol
+ * @interface MCPRequest
+ */
 export interface MCPRequest {
     id: string;
     method: string;
@@ -10,6 +14,11 @@ export interface MCPRequest {
     jsonrpc: string;
 }
 
+/**
+ * Represents an active WebSocket session with a client
+ * @interface MCPSession
+ * @internal
+ */
 interface MCPSession {
     id: string;
     socket: WebSocket;
@@ -17,6 +26,11 @@ interface MCPSession {
     lastActivity: number;
 }
 
+/**
+ * Represents a JSON-RPC response in the Model Context Protocol
+ * @interface MCPResponse
+ * @internal
+ */
 interface MCPResponse {
     id: string;
     result?: any;
@@ -26,6 +40,11 @@ interface MCPResponse {
     };
 }
 
+/**
+ * Implementation of the Model Context Protocol server
+ * Handles WebSocket connections, session management, and request processing
+ * @class MCPServer
+ */
 export class MCPServer {
     private static readonly PROTOCOL_VERSION = '2.0';
     private static readonly SESSION_TIMEOUT = 1800000; // 30 minutes
@@ -43,6 +62,11 @@ export class MCPServer {
         setInterval(() => this.cleanupSessions(), 60000); // Cleanup every minute
     }
 
+    /**
+     * Starts the MCP WebSocket server
+     * @throws {Error} If server fails to start
+     * @returns {Promise<void>}
+     */
     public async start(): Promise<void> {
         try {
             this.server = new WebSocket.Server({ port: this.port });
@@ -61,6 +85,10 @@ export class MCPServer {
         }
     }
 
+    /**
+     * Stops the MCP server and closes all active connections
+     * @returns {void}
+     */
     public stop(): void {
         for (const [_, session] of this.sessions) {
             session.socket.close();
@@ -69,6 +97,13 @@ export class MCPServer {
         this.server?.close();
     }
 
+    /**
+     * Handles new WebSocket connections
+     * Sets up message, close and error handlers for the socket
+     * @param {WebSocket} socket - The WebSocket connection to handle
+     * @returns {void}
+     * @private
+     */
     private handleConnection(socket: WebSocket): void {
         const session: MCPSession = {
             id: this.generateSessionId(),
@@ -107,6 +142,13 @@ export class MCPServer {
         });
     }
 
+    /**
+     * Validates an incoming JSON-RPC request
+     * @param {any} data - The parsed JSON data to validate
+     * @returns {MCPRequest} The validated request object
+     * @throws {Error} If the request is invalid
+     * @private
+     */
     private validateRequest(data: any): MCPRequest {
         if (!data || typeof data !== 'object') {
             throw this.createError(-32600, 'Invalid request', data?.id);
@@ -127,6 +169,14 @@ export class MCPServer {
         return data as MCPRequest;
     }
 
+    /**
+     * Handles an MCP request and generates appropriate response
+     * Supports methods: mcp.lmt.listExtensions, mcp.lmt.getToolInfo, mcp.lmt.executeTool
+     * @param {MCPRequest} request - The validated request to handle
+     * @param {MCPSession} session - The session that sent the request
+     * @returns {Promise<MCPResponse>} The response to send back
+     * @private
+     */
     private async handleRequest(request: MCPRequest, session: MCPSession): Promise<MCPResponse> {
         try {
             let result;
@@ -186,26 +236,44 @@ export class MCPServer {
                 }
             };
         }
-    
-        private generateSessionId(): string {
-            return `session_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
-        }
-    
-        private cleanupSessions(): void {
-            const now = Date.now();
-            for (const [id, session] of this.sessions) {
-                if (now - session.lastActivity > MCPServer.SESSION_TIMEOUT) {
-                    session.socket.close();
-                    this.sessions.delete(id);
-                }
+    }
+
+    /**
+     * Generates a unique session ID combining timestamp and random string
+     * @returns {string} The generated session ID
+     * @private
+     */
+    private generateSessionId(): string {
+        return `session_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+    }
+
+    /**
+     * Removes inactive sessions that have exceeded the timeout period
+     * @returns {void}
+     * @private
+     */
+    private cleanupSessions(): void {
+        const now = Date.now();
+        for (const [id, session] of this.sessions) {
+            if (now - session.lastActivity > MCPServer.SESSION_TIMEOUT) {
+                session.socket.close();
+                this.sessions.delete(id);
             }
         }
-    
-        private createError(code: number, message: string, requestId: string | number | null): Error {
-            const error = new Error(message);
-            (error as any).code = code;
-            (error as any).requestId = requestId;
-            return error;
-        }
+    }
+
+    /**
+     * Creates an error object with JSON-RPC specific properties
+     * @param {number} code - The JSON-RPC error code
+     * @param {string} message - The error message
+     * @param {string | number | null} requestId - The ID of the request that caused the error
+     * @returns {Error} The created error object
+     * @private
+     */
+    private createError(code: number, message: string, requestId: string | number | null): Error {
+        const error = new Error(message);
+        (error as any).code = code;
+        (error as any).requestId = requestId;
+        return error;
     }
 }

@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import { ExtensionRegistry } from '../registry/extensionRegistry';
 
+/**
+ * Represents the result of a tool execution
+ * @interface ExecutionResult
+ */
 interface ExecutionResult {
     success: boolean;
     result?: any;
@@ -9,24 +13,42 @@ interface ExecutionResult {
     executionTime?: number;
 }
 
+/**
+ * Represents an error that occurred during tool execution
+ * @interface ExecutionError
+ */
 interface ExecutionError {
     code: string;
     message: string;
     details?: any;
 }
 
+/**
+ * Represents a cached tool execution result
+ * @interface CacheEntry
+ * @internal
+ */
 interface CacheEntry {
     result: any;
     timestamp: number;
     parameters: string;
 }
 
+/**
+ * Tracks metrics for ongoing tool executions
+ * @interface ExecutionMetrics
+ * @internal
+ */
 interface ExecutionMetrics {
     startTime: number;
     attempts: number;
     lastError?: Error;
 }
 
+/**
+ * Describes a parameter for a language model tool
+ * @interface ToolParameter
+ */
 interface ToolParameter {
     name: string;
     type: string;
@@ -34,6 +56,10 @@ interface ToolParameter {
     required: boolean;
 }
 
+/**
+ * Describes a language model tool provided by an extension
+ * @interface Tool
+ */
 interface Tool {
     id: string;
     name: string;
@@ -41,17 +67,30 @@ interface Tool {
     parameters: ToolParameter[];
 }
 
+/**
+ * Interface that must be implemented by extensions providing language model tools
+ * @interface LanguageModelToolsAPI
+ */
 interface LanguageModelToolsAPI {
     executeTool(toolId: string, params: any): Promise<any>;
 }
 
 // Define minimal interface for VSCode API we need
+/**
+ * Minimal interface for required VS Code API functionality
+ * @interface VSCodeAPI
+ */
 export interface VSCodeAPI {
     extensions: {
         getExtension(extensionId: string): vscode.Extension<any> | undefined;
     };
 }
 
+/**
+ * Handles execution of language model tools provided by VS Code extensions
+ * Implements caching, timeout handling, retries, and parameter validation
+ * @class CommandExecutor
+ */
 export class CommandExecutor {
     private static readonly EXECUTION_TIMEOUT = 30000; // 30 seconds
     private static readonly MAX_RETRIES = 2;
@@ -68,6 +107,12 @@ export class CommandExecutor {
         setInterval(() => this.cleanupCache(), 60000);
     }
 
+    /**
+     * Executes a language model tool with caching and retry logic
+     * @param {string} toolId - The ID of the tool to execute (format: extensionId.toolName)
+     * @param {any} parameters - Parameters to pass to the tool
+     * @returns {Promise<ExecutionResult>} The result of the tool execution
+     */
     public async executeCommand(toolId: string, parameters: any): Promise<ExecutionResult> {
         const startTime = Date.now();
         const cacheKey = this.getCacheKey(toolId, parameters);
@@ -118,6 +163,14 @@ export class CommandExecutor {
         }
     }
 
+    /**
+     * Executes a tool with retry logic and exponential backoff
+     * @param {string} toolId - The ID of the tool to execute
+     * @param {any} parameters - Parameters for the tool
+     * @param {ExecutionMetrics} metrics - Execution tracking metrics
+     * @returns {Promise<ExecutionResult>} The execution result
+     * @private
+     */
     private async executeWithRetry(
         toolId: string,
         parameters: any,
@@ -161,6 +214,13 @@ export class CommandExecutor {
         };
     }
 
+    /**
+     * Splits a tool ID into extension ID and local tool ID
+     * @param {string} toolId - The full tool ID to parse
+     * @returns {[string, string]} Tuple of [extensionId, localToolId]
+     * @throws {Error} If tool ID format is invalid
+     * @private
+     */
     private parseToolId(toolId: string): [string, string] {
         const parts = toolId.split('.');
         if (parts.length < 2) {
@@ -173,6 +233,13 @@ export class CommandExecutor {
         return [extensionId, localToolId];
     }
 
+    /**
+     * Validates tool parameters against their definitions
+     * @param {Tool} tool - The tool containing parameter definitions
+     * @param {any} parameters - The parameters to validate
+     * @returns {ExecutionResult} Validation result
+     * @private
+     */
     private validateParameters(tool: Tool, parameters: any): ExecutionResult {
         // Check for required parameters
         const missing = tool.parameters
@@ -211,6 +278,13 @@ export class CommandExecutor {
         return { success: true };
     }
 
+    /**
+     * Validates a parameter value against its expected type
+     * @param {ToolParameter} param - The parameter definition
+     * @param {any} value - The value to validate
+     * @returns {boolean} True if value matches expected type
+     * @private
+     */
     private validateParameterType(param: ToolParameter, value: any): boolean {
         switch (param.type.toLowerCase()) {
             case 'string':
@@ -227,6 +301,14 @@ export class CommandExecutor {
                 return false;
         }
     }
+    /**
+     * Executes a tool with timeout handling
+     * Handles extension activation and API verification
+     * @param {string} toolId - The ID of the tool to execute
+     * @param {any} parameters - Parameters for the tool
+     * @returns {Promise<ExecutionResult>} The execution result
+     * @private
+     */
     private async executeWithTimeout(toolId: string, parameters: any): Promise<ExecutionResult> {
         const [extensionId, localToolId] = this.parseToolId(toolId);
         
@@ -309,10 +391,21 @@ export class CommandExecutor {
         }
     }
 
+    /**
+     * Generates a cache key for a tool execution
+     * @param {string} toolId - The ID of the tool
+     * @param {any} parameters - The parameters used
+     * @returns {string} The generated cache key
+     * @private
+     */
     private getCacheKey(toolId: string, parameters: any): string {
         return `${toolId}:${JSON.stringify(parameters)}`;
     }
 
+    /**
+     * Removes expired entries from the execution cache
+     * @private
+     */
     private cleanupCache(): void {
         const now = Date.now();
         for (const [key, entry] of this.cache) {
@@ -322,6 +415,13 @@ export class CommandExecutor {
         }
     }
 
+    /**
+     * Creates a standardized error object for tool execution failures
+     * @param {string} code - The error code
+     * @param {any} error - The original error
+     * @returns {ExecutionError} Standardized error object
+     * @private
+     */
     private createError(code: string, error: any): ExecutionError {
         return {
             code,
