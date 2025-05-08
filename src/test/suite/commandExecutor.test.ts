@@ -4,6 +4,20 @@ import { CommandExecutor } from '../../executor/commandExecutor';
 import { ExtensionRegistry } from '../../registry/extensionRegistry';
 import { mockVscode } from './mockVscode';
 
+interface ExecutionResult {
+    success: boolean;
+    result?: any;
+    error?: ExecutionError;
+    cached?: boolean;
+    executionTime?: number;
+}
+
+interface ExecutionError {
+    code: string;
+    message: string;
+    details?: any;
+}
+
 suite('CommandExecutor Test Suite', () => {
     let executor: CommandExecutor;
     let registry: ExtensionRegistry;
@@ -34,15 +48,17 @@ suite('CommandExecutor Test Suite', () => {
     });
 
     test('Should reject invalid tool IDs', async () => {
-        const result = await executor.executeCommand('invalid-tool', {});
+        const result = await executor.executeCommand('invalid-tool', {}) as ExecutionResult;
         assert.strictEqual(result.success, false);
-        assert.ok(result.error?.includes('Invalid tool ID format'));
+        assert.strictEqual(result.error?.code, 'EXECUTION_ERROR');
+        assert.ok(result.error?.message.includes('Invalid tool ID format'));
     });
 
     test('Should reject non-existent extensions', async () => {
-        const result = await executor.executeCommand('nonexistent.extension.tool', {});
+        const result = await executor.executeCommand('nonexistent.extension.tool', {}) as ExecutionResult;
         assert.strictEqual(result.success, false);
-        assert.ok(result.error?.includes('Extension not found'));
+        assert.strictEqual(result.error?.code, 'EXTENSION_NOT_FOUND');
+        assert.ok(result.error?.details?.extensionId);
     });
 
     test('Should validate required parameters', async () => {
@@ -72,9 +88,10 @@ suite('CommandExecutor Test Suite', () => {
             getExtension: () => mockExt
         });
 
-        const result = await executor.executeCommand(`${extensionId}.${toolId}`, {});
+        const result = await executor.executeCommand(`${extensionId}.${toolId}`, {}) as ExecutionResult;
         assert.strictEqual(result.success, false);
-        assert.ok(result.error?.includes('Missing required parameter'));
+        assert.strictEqual(result.error?.code, 'MISSING_REQUIRED_PARAMETERS');
+        assert.ok(result.error?.details?.missing.includes('required_param'));
     });
 
     test('Should validate parameter types', async () => {
@@ -109,14 +126,15 @@ suite('CommandExecutor Test Suite', () => {
         });
         
         assert.strictEqual(result.success, false);
-        assert.ok(result.error?.includes('must be a number'));
+        assert.strictEqual(result.error?.code, 'INVALID_PARAMETER_TYPE');
+        assert.strictEqual(result.error?.details?.expectedType, 'number');
     });
 
     test('Should handle extension activation failure', async () => {
         const toolId = 'mock.extension.tool';
         const result = await executor.executeCommand(toolId, {});
         assert.strictEqual(result.success, false);
-        assert.ok(result.error?.includes('Extension not found'));
+        assert.strictEqual(result.error?.code, 'EXTENSION_NOT_FOUND');
     });
 
     test('Should handle missing API implementation', async () => {
@@ -149,7 +167,7 @@ suite('CommandExecutor Test Suite', () => {
 
         const result = await executor.executeCommand(`${extensionId}.${toolId}`, {});
         assert.strictEqual(result.success, false, 'Should fail when API is missing');
-        assert.ok(result.error?.includes('does not implement LanguageModelTools API'));
+        assert.strictEqual(result.error?.code, 'INVALID_API_IMPLEMENTATION');
     });
 
     test('Should handle successful tool execution', async () => {
@@ -195,5 +213,92 @@ suite('CommandExecutor Test Suite', () => {
         assert.ok(result.result, 'Result should be present');
         assert.strictEqual(typeof result.result, 'string', 'Result should be a string');
         assert.ok(result.result.includes('test input'), 'Result should include input parameter');
+    });
+
+    test('Should cache successful results', async () => {
+        const extensionId = 'test.extension';
+        const toolId = 'tool';
+        const tools = [{
+            id: toolId,
+            name: 'Test Tool',
+            description: 'A test tool',
+            parameters: [{
+                name: 'input',
+                type: 'string',
+                description: 'Input parameter',
+                required: true
+            }]
+        }];
+
+        let executionCount = 0;
+        const mockExt = createMockExtension(extensionId, tools);
+        (registry as any).extensions.set(extensionId, {
+            id: extensionId,
+            name: mockExt.packageJSON.name,
+            tools: tools
+        });
+
+        mockVscode.setExtensions({
+            getExtension: () => ({
+                ...mockExt,
+                exports: {
+                    executeTool: async () => {
+                        executionCount++;
+                        return 'test result';
+                    }
+                }
+            })
+        });
+
+        // First execution
+        const result1 = await executor.executeCommand(`${extensionId}.${toolId}`, {
+            input: 'test'
+        }) as ExecutionResult;
+        
+        assert.strictEqual(result1.success, true);
+        assert.strictEqual(result1.cached, undefined);
+        assert.strictEqual(executionCount, 1);
+
+        // Second execution (should be cached)
+        const result2 = await executor.executeCommand(`${extensionId}.${toolId}`, {
+            input: 'test'
+        }) as ExecutionResult;
+
+        assert.strictEqual(result2.success, true);
+        assert.strictEqual(result2.cached, true);
+        assert.strictEqual(executionCount, 1, 'Should not execute tool again when cached');
+    });
+
+    test('Should handle execution timeout', async () => {
+        const extensionId = 'test.extension';
+        const toolId = 'tool';
+        const tools = [{
+            id: toolId,
+            name: 'Test Tool',
+            description: 'A test tool',
+            parameters: []
+        }];
+
+        const mockExt = createMockExtension(extensionId, tools);
+        (registry as any).extensions.set(extensionId, {
+            id: extensionId,
+            name: mockExt.packageJSON.name,
+            tools: tools
+        });
+
+        mockVscode.setExtensions({
+            getExtension: () => ({
+                ...mockExt,
+                exports: {
+                    executeTool: () => new Promise(resolve => setTimeout(resolve, 35000))
+                }
+            })
+        });
+
+        const result = await executor.executeCommand(`${extensionId}.${toolId}`, {}) as ExecutionResult;
+
+        assert.strictEqual(result.success, false);
+        assert.strictEqual(result.error?.code, 'TOOL_EXECUTION_FAILED');
+        assert.ok(result.error?.message.includes('timeout'));
     });
 });

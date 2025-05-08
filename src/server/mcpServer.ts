@@ -3,10 +3,18 @@ import * as vscode from 'vscode';
 import { ExtensionRegistry } from '../registry/extensionRegistry';
 import { CommandExecutor } from '../executor/commandExecutor';
 
-interface MCPRequest {
+export interface MCPRequest {
     id: string;
     method: string;
     params: any;
+    jsonrpc: string;
+}
+
+interface MCPSession {
+    id: string;
+    socket: WebSocket;
+    connectedAt: number;
+    lastActivity: number;
 }
 
 interface MCPResponse {
@@ -19,14 +27,21 @@ interface MCPResponse {
 }
 
 export class MCPServer {
+    private static readonly PROTOCOL_VERSION = '2.0';
+    private static readonly SESSION_TIMEOUT = 1800000; // 30 minutes
+
     private server: WebSocket.Server | undefined;
-    private clients: Set<WebSocket> = new Set();
-    private readonly port = 3000;
+    private sessions: Map<string, MCPSession> = new Map();
+    private readonly port: number;
 
     constructor(
         private readonly registry: ExtensionRegistry,
-        private readonly executor: CommandExecutor
-    ) {}
+        private readonly executor: CommandExecutor,
+        port: number = 3000
+    ) {
+        this.port = port;
+        setInterval(() => this.cleanupSessions(), 60000); // Cleanup every minute
+    }
 
     public async start(): Promise<void> {
         try {
@@ -47,41 +62,72 @@ export class MCPServer {
     }
 
     public stop(): void {
-        this.clients.forEach(client => client.close());
-        this.clients.clear();
+        for (const [_, session] of this.sessions) {
+            session.socket.close();
+        }
+        this.sessions.clear();
         this.server?.close();
     }
 
     private handleConnection(socket: WebSocket): void {
-        this.clients.add(socket);
+        const session: MCPSession = {
+            id: this.generateSessionId(),
+            socket,
+            connectedAt: Date.now(),
+            lastActivity: Date.now()
+        };
+
+        this.sessions.set(session.id, session);
 
         socket.on('message', async (data: WebSocket.RawData) => {
             try {
-                const request: MCPRequest = JSON.parse(data.toString());
-                const response = await this.handleRequest(request);
+                const request = this.validateRequest(JSON.parse(data.toString()));
+                session.lastActivity = Date.now();
+                const response = await this.handleRequest(request, session);
                 socket.send(JSON.stringify(response));
             } catch (error) {
                 socket.send(JSON.stringify({
-                    id: 'error',
+                    jsonrpc: MCPServer.PROTOCOL_VERSION,
+                    id: error instanceof Error && 'requestId' in error ? (error as any).requestId : null,
                     error: {
-                        code: -32603,
-                        message: `Internal error: ${error}`
+                        code: error instanceof Error && 'code' in error ? (error as any).code : -32603,
+                        message: error instanceof Error ? error.message : 'Internal error'
                     }
                 }));
             }
         });
 
         socket.on('close', () => {
-            this.clients.delete(socket);
+            this.sessions.delete(session.id);
         });
 
         socket.on('error', (error: Error) => {
             vscode.window.showErrorMessage(`WebSocket error: ${error.message}`);
-            this.clients.delete(socket);
+            this.sessions.delete(session.id);
         });
     }
 
-    private async handleRequest(request: MCPRequest): Promise<MCPResponse> {
+    private validateRequest(data: any): MCPRequest {
+        if (!data || typeof data !== 'object') {
+            throw this.createError(-32600, 'Invalid request', data?.id);
+        }
+
+        if (data.jsonrpc !== MCPServer.PROTOCOL_VERSION) {
+            throw this.createError(-32600, 'Invalid JSON-RPC version', data.id);
+        }
+
+        if (typeof data.id !== 'string' && typeof data.id !== 'number') {
+            throw this.createError(-32600, 'Invalid request ID', null);
+        }
+
+        if (typeof data.method !== 'string' || !data.method) {
+            throw this.createError(-32600, 'Invalid method', data.id);
+        }
+
+        return data as MCPRequest;
+    }
+
+    private async handleRequest(request: MCPRequest, session: MCPSession): Promise<MCPResponse> {
         try {
             let result;
             
@@ -139,6 +185,27 @@ export class MCPServer {
                     message: `Internal error: ${error}`
                 }
             };
+        }
+    
+        private generateSessionId(): string {
+            return `session_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+        }
+    
+        private cleanupSessions(): void {
+            const now = Date.now();
+            for (const [id, session] of this.sessions) {
+                if (now - session.lastActivity > MCPServer.SESSION_TIMEOUT) {
+                    session.socket.close();
+                    this.sessions.delete(id);
+                }
+            }
+        }
+    
+        private createError(code: number, message: string, requestId: string | number | null): Error {
+            const error = new Error(message);
+            (error as any).code = code;
+            (error as any).requestId = requestId;
+            return error;
         }
     }
 }
