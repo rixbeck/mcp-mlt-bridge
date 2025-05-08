@@ -3,7 +3,7 @@ const path = require('path');
 /** @type {import('webpack').Configuration} */
 const config = {
   target: 'node',
-  mode: 'development',
+  mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
   entry: {
     'extension': './src/extension.ts',
     'test/runTest': './src/test/runTest.ts',
