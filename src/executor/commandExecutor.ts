@@ -33,10 +33,49 @@ export interface VSCodeAPI {
 }
 
 export class CommandExecutor {
+    private static readonly ACTIVATION_TIMEOUT = 10000; // 10 seconds
+    private static readonly MAX_RETRIES = 3;
+    private static readonly RETRY_DELAY = 1000; // 1 second
+
     constructor(
         private readonly registry: ExtensionRegistry,
         private readonly vscodeApi: VSCodeAPI = vscode
     ) {}
+
+    private async validateExtension(extensionId: string): Promise<vscode.Extension<any>> {
+        let lastError: Error | undefined;
+        
+        for (let attempt = 1; attempt <= CommandExecutor.MAX_RETRIES; attempt++) {
+            try {
+                const extension = this.vscodeApi.extensions.getExtension(extensionId);
+                if (!extension) {
+                    throw new Error(`Extension not found: ${extensionId}`);
+                }
+
+                if (!extension.isActive) {
+                    const activationPromise = extension.activate();
+                    const timeoutPromise = new Promise<never>((_, reject) => {
+                        setTimeout(() => reject(new Error('Activation timeout')),
+                            CommandExecutor.ACTIVATION_TIMEOUT);
+                    });
+
+                    await Promise.race([activationPromise, timeoutPromise]);
+                }
+
+                if (!extension.exports || typeof extension.exports.executeTool !== 'function') {
+                    throw new Error(`Extension ${extensionId} does not implement LanguageModelTools API`);
+                }
+
+                return extension;
+            } catch (error) {
+                lastError = error as Error;
+                if (attempt === CommandExecutor.MAX_RETRIES) break;
+                await new Promise(resolve => setTimeout(resolve, CommandExecutor.RETRY_DELAY));
+            }
+        }
+        
+        throw lastError || new Error(`Failed to validate extension: ${extensionId}`);
+    }
 
     public async executeCommand(toolId: string, parameters: any): Promise<ExecutionResult> {
         try {
@@ -67,35 +106,18 @@ export class CommandExecutor {
                 return paramValidation;
             }
 
-            // Get and validate the extension instance
-            const extension = this.vscodeApi.extensions.getExtension(extensionId);
-            if (!extension) {
+            // Get and validate the extension instance with retry logic
+            let extension;
+            try {
+                extension = await this.validateExtension(extensionId);
+            } catch (error) {
                 return {
                     success: false,
-                    error: `Extension instance not found: ${extensionId}`
+                    error: error instanceof Error ? error.message : String(error)
                 };
             }
 
-            // Ensure extension is activated
-            if (!extension.isActive) {
-                try {
-                    await extension.activate();
-                } catch (error) {
-                    return {
-                        success: false,
-                        error: `Failed to activate extension: ${error}`
-                    };
-                }
-            }
-
-            // Check for API implementation
             const api = extension.exports;
-            if (!api || typeof api.executeTool !== 'function') {
-                return {
-                    success: false,
-                    error: `Extension ${extensionId} does not implement LanguageModelTools API`
-                };
-            }
 
             // Execute the tool
             try {
