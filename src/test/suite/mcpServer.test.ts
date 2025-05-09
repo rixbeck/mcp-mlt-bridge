@@ -70,6 +70,7 @@ suite('MCPServer Test Suite', () => {
 
     test('Server should handle unknown methods', (done) => {
         const request = {
+            jsonrpc: '2.0',
             id: '1',
             method: 'unknown.method',
             params: {}
@@ -88,6 +89,7 @@ suite('MCPServer Test Suite', () => {
 
     test('Server should handle listExtensions command', (done) => {
         const request = {
+            jsonrpc: '2.0',
             id: '2',
             method: 'mcp.lmt.listExtensions',
             params: {}
@@ -105,6 +107,7 @@ suite('MCPServer Test Suite', () => {
 
     test('Server should handle getToolInfo command', (done) => {
         const request = {
+            jsonrpc: '2.0',
             id: '3',
             method: 'mcp.lmt.getToolInfo',
             params: {
@@ -125,6 +128,7 @@ suite('MCPServer Test Suite', () => {
 
     test('Server should handle executeTool command', (done) => {
         const request = {
+            jsonrpc: '2.0',
             id: '4',
             method: 'mcp.lmt.executeTool',
             params: {
@@ -158,6 +162,7 @@ suite('MCPServer Test Suite', () => {
         // Send multiple requests
         for (let i = 0; i < totalRequests; i++) {
             const request = {
+                jsonrpc: '2.0',
                 id: `multi${i}`,
                 method: 'mcp.lmt.listExtensions',
                 params: {}

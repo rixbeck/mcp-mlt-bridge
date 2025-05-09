@@ -23,7 +23,7 @@ async function retryOperation<T>(
 }
 
 suite('Extension Test Suite', () => {
-    const extensionId = 'your-publisher-name.mcp-lmt-bridge';
+    const extensionId = 'neologik-team.mcp-lmt-bridge';
     let disposables: vscode.Disposable[] = [];
     const activationTimeout = 10000; // 10 seconds timeout
 

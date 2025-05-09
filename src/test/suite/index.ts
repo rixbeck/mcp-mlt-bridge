@@ -1,6 +1,21 @@
 import * as path from 'path';
 import * as Mocha from 'mocha';
 import * as glob from 'fast-glob';
+import * as fs from 'fs';
+
+async function cleanupTestArtifacts(): Promise<void> {
+    const testDirs = [
+        path.resolve(__dirname, '../test-workspace'),
+        path.resolve(__dirname, '../test-resources'),
+        path.resolve(__dirname, '../test-user-data')
+    ];
+
+    for (const dir of testDirs) {
+        if (fs.existsSync(dir)) {
+            await fs.promises.rm(dir, { recursive: true, force: true });
+        }
+    }
+}
 
 export async function run(): Promise<void> {
     // Create the mocha test
@@ -37,6 +52,9 @@ export async function run(): Promise<void> {
             mocha.addFile(file);
         });
 
+        // Clean up any leftover test artifacts before running tests
+        await cleanupTestArtifacts();
+
         // Run the mocha tests
         return new Promise<void>((resolve, reject) => {
             try {
@@ -55,5 +73,8 @@ export async function run(): Promise<void> {
     } catch (err) {
         console.error('Error in test suite:', err);
         throw err;
+    } finally {
+        // Clean up test artifacts after tests complete
+        await cleanupTestArtifacts();
     }
 }

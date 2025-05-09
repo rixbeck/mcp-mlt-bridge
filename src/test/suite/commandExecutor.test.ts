@@ -290,7 +290,7 @@ suite('CommandExecutor Test Suite', () => {
             getExtension: () => ({
                 ...mockExt,
                 exports: {
-                    executeTool: () => new Promise(resolve => setTimeout(resolve, 35000))
+                    executeTool: () => new Promise((_, reject) => setTimeout(() => reject(new Error('Execution timeout')), 5000))
                 }
             })
         });
