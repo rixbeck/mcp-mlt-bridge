@@ -93,7 +93,9 @@ export interface VSCodeAPI {
  */
 export class CommandExecutor {
     private static readonly EXECUTION_TIMEOUT = 30000; // 30 seconds
-    private static readonly MAX_RETRIES = 2;
+    private static readonly ACTIVATION_TIMEOUT = 10000; // 10 seconds
+    private static readonly MAX_RETRIES = 3;
+    private static readonly RETRY_DELAY = 1000; // 1 second
     private static readonly CACHE_TTL = 300000; // 5 minutes
     
     private readonly cache: Map<string, CacheEntry> = new Map();
@@ -105,6 +107,43 @@ export class CommandExecutor {
     ) {
         // Clear expired cache entries periodically
         setInterval(() => this.cleanupCache(), 60000);
+    }
+
+    private async validateExtension(extensionId: string): Promise<vscode.Extension<any>> {
+        let lastError: Error | undefined;
+        
+        for (let attempt = 1; attempt <= CommandExecutor.MAX_RETRIES; attempt++) {
+            try {
+                const extension = this.vscodeApi.extensions.getExtension(extensionId);
+                if (!extension) {
+                    throw new Error(`Extension not found: ${extensionId}`);
+                }
+
+                if (!extension.isActive) {
+                    const activationPromise = extension.activate();
+                    const timeoutPromise = new Promise<never>((_, reject) => {
+                        setTimeout(() => reject(new Error('Activation timeout')),
+                            CommandExecutor.ACTIVATION_TIMEOUT);
+                    });
+
+                    await Promise.race([activationPromise, timeoutPromise]);
+                }
+
+                if (!extension.exports || typeof extension.exports.executeTool !== 'function') {
+                    const error = new Error(`Extension ${extensionId} does not implement LanguageModelTools API`);
+                    (error as any).code = 'INVALID_API_IMPLEMENTATION';
+                    throw error;
+                }
+
+                return extension;
+            } catch (error) {
+                lastError = error as Error;
+                if (attempt === CommandExecutor.MAX_RETRIES) break;
+                await new Promise(resolve => setTimeout(resolve, CommandExecutor.RETRY_DELAY));
+            }
+        }
+        
+        throw lastError || new Error(`Failed to validate extension: ${extensionId}`);
     }
 
     /**
@@ -128,29 +167,83 @@ export class CommandExecutor {
                 };
             }
 
-            // Track execution metrics
-            const metrics: ExecutionMetrics = {
-                startTime,
-                attempts: 0
-            };
-            this.activeExecutions.set(cacheKey, metrics);
+            // Extract extension and tool IDs
+            const [extensionId, localToolId] = this.parseToolId(toolId);
+            
+            // Get extension info
+            const extensionInfo = await this.registry.getExtension(extensionId);
+            if (!extensionInfo) {
+                return {
+                    success: false,
+                    error: this.createError('EXTENSION_NOT_FOUND', { extensionId })
+                };
+            }
 
-            // Execute with retry logic
-            const result = await this.executeWithRetry(toolId, parameters, metrics);
+            // Find the tool with exact ID match
+            const tool = extensionInfo.tools.find(t => t.id === localToolId);
+            if (!tool) {
+                return {
+                    success: false,
+                    error: this.createError('TOOL_NOT_FOUND', { toolId: localToolId, extensionId })
+                };
+            }
 
-            // Cache successful results
-            if (result.success) {
+            // Validate parameters first
+            const paramValidation = this.validateParameters(tool, parameters);
+            if (!paramValidation.success) {
+                return paramValidation;
+            }
+
+            // Get and validate the extension instance with retry logic
+            let extension;
+            try {
+                extension = await this.validateExtension(extensionId);
+            } catch (error) {
+                if (error instanceof Error && (error as any).code === 'INVALID_API_IMPLEMENTATION') {
+                    return {
+                        success: false,
+                        error: this.createError('INVALID_API_IMPLEMENTATION', error)
+                    };
+                }
+                return {
+                    success: false,
+                    error: this.createError('EXTENSION_VALIDATION_FAILED', error)
+                };
+            }
+
+            const api = extension.exports;
+
+            // Execute the tool with timeout
+            try {
+                const toolApi = api as LanguageModelToolsAPI;
+                const result = await Promise.race([
+                    toolApi.executeTool(localToolId, parameters),
+                    new Promise<never>((_, reject) => {
+                        setTimeout(() => reject(new Error('Execution timeout')), 
+                            CommandExecutor.EXECUTION_TIMEOUT);
+                    })
+                ]);
+
+                // Cache successful results
                 this.cache.set(cacheKey, {
-                    result: result.result,
+                    result,
                     timestamp: Date.now(),
                     parameters: JSON.stringify(parameters)
                 });
-            }
 
-            return {
-                ...result,
-                executionTime: Date.now() - startTime
-            };
+                return {
+                    success: true,
+                    result,
+                    executionTime: Date.now() - startTime
+                };
+
+            } catch (error) {
+                return {
+                    success: false,
+                    error: this.createError('TOOL_EXECUTION_FAILED', error),
+                    executionTime: Date.now() - startTime
+                };
+            }
 
         } catch (error) {
             return {
@@ -158,60 +251,7 @@ export class CommandExecutor {
                 error: this.createError('EXECUTION_ERROR', error),
                 executionTime: Date.now() - startTime
             };
-        } finally {
-            this.activeExecutions.delete(cacheKey);
         }
-    }
-
-    /**
-     * Executes a tool with retry logic and exponential backoff
-     * @param {string} toolId - The ID of the tool to execute
-     * @param {any} parameters - Parameters for the tool
-     * @param {ExecutionMetrics} metrics - Execution tracking metrics
-     * @returns {Promise<ExecutionResult>} The execution result
-     * @private
-     */
-    private async executeWithRetry(
-        toolId: string,
-        parameters: any,
-        metrics: ExecutionMetrics
-    ): Promise<ExecutionResult> {
-        while (metrics.attempts <= CommandExecutor.MAX_RETRIES) {
-            try {
-                metrics.attempts++;
-                
-                // Check timeout
-                if (Date.now() - metrics.startTime > CommandExecutor.EXECUTION_TIMEOUT) {
-                    throw new Error('Execution timeout exceeded');
-                }
-
-                const result = await this.executeWithTimeout(toolId, parameters);
-                return result;
-
-            } catch (error) {
-                metrics.lastError = error as Error;
-                
-                if (metrics.attempts > CommandExecutor.MAX_RETRIES) {
-                    return {
-                        success: false,
-                        error: this.createError('MAX_RETRIES_EXCEEDED', error)
-                    };
-                }
-                
-                // Wait before retrying (exponential backoff)
-                await new Promise(resolve =>
-                    setTimeout(resolve, Math.pow(2, metrics.attempts) * 1000)
-                );
-            }
-        }
-
-        return {
-            success: false,
-            error: this.createError(
-                'UNKNOWN_ERROR',
-                metrics.lastError || new Error('Unknown execution error')
-            )
-        };
     }
 
     /**
@@ -301,94 +341,20 @@ export class CommandExecutor {
                 return false;
         }
     }
+
     /**
-     * Executes a tool with timeout handling
-     * Handles extension activation and API verification
-     * @param {string} toolId - The ID of the tool to execute
-     * @param {any} parameters - Parameters for the tool
-     * @returns {Promise<ExecutionResult>} The execution result
+     * Creates a standardized error object
+     * @param {string} code - Error code
+     * @param {any} error - Original error or error details
+     * @returns {ExecutionError} Standardized error object
      * @private
      */
-    private async executeWithTimeout(toolId: string, parameters: any): Promise<ExecutionResult> {
-        const [extensionId, localToolId] = this.parseToolId(toolId);
-        
-        // Get extension info
-        const extensionInfo = await this.registry.getExtension(extensionId);
-        if (!extensionInfo) {
-            return {
-                success: false,
-                error: this.createError('EXTENSION_NOT_FOUND', { extensionId })
-            };
-        }
-
-        // Find the tool
-        const tool = extensionInfo.tools.find(t => t.id === localToolId);
-        if (!tool) {
-            return {
-                success: false,
-                error: this.createError('TOOL_NOT_FOUND', { toolId: localToolId, extensionId })
-            };
-        }
-
-        // Validate parameters
-        const paramValidation = this.validateParameters(tool, parameters);
-        if (!paramValidation.success) {
-            return paramValidation;
-        }
-
-        // Get extension instance
-        const extension = this.vscodeApi.extensions.getExtension(extensionId);
-        if (!extension) {
-            return {
-                success: false,
-                error: this.createError('EXTENSION_INSTANCE_NOT_FOUND', { extensionId })
-            };
-        }
-
-        // Activate extension if needed
-        if (!extension.isActive) {
-            try {
-                await extension.activate();
-            } catch (error) {
-                return {
-                    success: false,
-                    error: this.createError('EXTENSION_ACTIVATION_FAILED', error)
-                };
-            }
-        }
-
-        // Verify API implementation
-        const api = extension.exports;
-        if (!api || typeof api.executeTool !== 'function') {
-            return {
-                success: false,
-                error: this.createError('INVALID_API_IMPLEMENTATION', { extensionId })
-            };
-        }
-
-        // Execute tool with timeout
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error('Execution timeout')), CommandExecutor.EXECUTION_TIMEOUT);
-        });
-
-        try {
-            const toolApi = api as LanguageModelToolsAPI;
-            const result = await Promise.race([
-                toolApi.executeTool(localToolId, parameters),
-                timeoutPromise
-            ]);
-
-            return {
-                success: true,
-                result
-            };
-
-        } catch (error) {
-            return {
-                success: false,
-                error: this.createError('TOOL_EXECUTION_FAILED', error)
-            };
-        }
+    private createError(code: string, error: any): ExecutionError {
+        return {
+            code,
+            message: error instanceof Error ? error.message : String(error),
+            details: error instanceof Error ? undefined : error
+        };
     }
 
     /**
@@ -413,23 +379,5 @@ export class CommandExecutor {
                 this.cache.delete(key);
             }
         }
-    }
-
-    /**
-     * Creates a standardized error object for tool execution failures
-     * @param {string} code - The error code
-     * @param {any} error - The original error
-     * @returns {ExecutionError} Standardized error object
-     * @private
-     */
-    private createError(code: string, error: any): ExecutionError {
-        return {
-            code,
-            message: error instanceof Error ? error.message : String(error),
-            details: error instanceof Error ? {
-                name: error.name,
-                stack: error.stack
-            } : error
-        };
     }
 }

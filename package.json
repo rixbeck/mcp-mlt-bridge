@@ -21,7 +21,9 @@
     "bridge"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onCapability:languageModelTools",
+    "onCapability:webview"
   ],
   "contributes": {
     "commands": [

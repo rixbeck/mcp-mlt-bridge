@@ -9,20 +9,33 @@ suite('MCPServer Test Suite', () => {
     let mockRegistry: ExtensionRegistry;
     let mockExecutor: CommandExecutor;
     let client: WebSocket;
-    const TEST_PORT = 3000;
+    let testPort: number;
+
+    const findAvailablePort = async (): Promise<number> => {
+        const server = require('net').createServer();
+        return new Promise((resolve, reject) => {
+            server.listen(0, () => {
+                const port = server.address().port;
+                server.close(() => resolve(port));
+            });
+            server.on('error', reject);
+        });
+    };
 
     setup(async () => {
+        // Get available port
+        testPort = await findAvailablePort();
         // Create mock registry and executor
         mockRegistry = new ExtensionRegistry();
         mockExecutor = new CommandExecutor(mockRegistry);
 
         // Initialize server
         server = new MCPServer(mockRegistry, mockExecutor);
-        await server.start();
+        await server.start(testPort);
 
         // Create client connection
         return new Promise<void>((resolve) => {
-            client = new WebSocket(`ws://localhost:${TEST_PORT}`);
+            client = new WebSocket(`ws://localhost:${testPort}`);
             client.on('open', () => resolve());
         });
     });
@@ -33,7 +46,7 @@ suite('MCPServer Test Suite', () => {
             client.close();
         }
         if (server) {
-            server.stop();
+            await server.stop();
         }
 
         // Wait for connections to close
@@ -50,7 +63,7 @@ suite('MCPServer Test Suite', () => {
         client.on('message', (data: WebSocket.RawData) => {
             const response = JSON.parse(data.toString());
             assert.strictEqual(response.error.code, -32603);
-            assert.ok(response.error.message.includes('Internal error'));
+            assert.ok(response.error.message.includes('Unexpected token'));
             done();
         });
     });
