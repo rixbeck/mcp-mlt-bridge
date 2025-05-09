@@ -24,33 +24,39 @@
 5. Reload VSCode when prompted
 
 #### From VSIX File (Development)
+
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/username/mcp-lmt-bridge.git
-   cd mcp-lmt-bridge
-   ```
+
+```bash
+git clone https://github.com/username/mcp-lmt-bridge.git
+cd mcp-lmt-bridge
+```
 
 2. Install dependencies and build:
-   ```bash
-   npm install
-   npm run clean
-   npm run compile
-   npm run package:vsix
-   ```
+
+```bash
+npm install
+npm run clean
+npm run compile
+npm run package:vsix
+```
 
 3. Install the extension:
-   ```bash
-   code --install-extension mcp-lmt-bridge-0.1.0.vsix
-   ```
+
+```bash
+code --install-extension mcp-lmt-bridge-0.1.0.vsix
+```
 
 4. Verify installation:
-   ```bash
-   code --list-extensions --show-versions | grep mcp-lmt-bridge
-   ```
+
+```bash
+code --list-extensions --show-versions | grep mcp-lmt-bridge
+```
 
 5. If the extension is not visible, check the troubleshooting guide for solutions.
 
 ### Configuration
+
 Create or modify `.vscode/settings.json` in your workspace:
 
 ```json
@@ -68,56 +74,59 @@ Create or modify `.vscode/settings.json` in your workspace:
 ### Basic Usage
 
 1. **Opening the Command Palette**
-   - Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
-   - The Command Palette will appear at the top of the VS Code window
+    - Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
+    - The Command Palette will appear at the top of the VS Code window
 
 2. **Available Commands**
-   Type "MCP" in the Command Palette to see available commands:
+    Type "MCP" in the Command Palette to see available commands:
 
-   - `MCP-LMT: List Extensions` - Lists all available MCP-enabled extensions
-   - `MCP-LMT: Get Tool Info` - Shows information about a specific tool
-   - `MCP-LMT: Execute Tool` - Runs a specified MCP tool
+    - `MCP-LMT: List Extensions` - Lists all available MCP-enabled extensions
+    - `MCP-LMT: Get Tool Info` - Shows information about a specific tool
+    - `MCP-LMT: Execute Tool` - Runs a specified MCP tool
 
 3. **Using the Commands**
-   a. List Extensions:
-   - Open Command Palette
-   - Type `MCP-LMT: List Extensions`
-   - Press Enter to see available extensions
+    a. List Extensions:
+    - Open Command Palette
+    - Type `MCP-LMT: List Extensions`
+    - Press Enter to see available extensions
 
-   b. Get Tool Info:
-   - Open Command Palette
-   - Type `MCP-LMT: Get Tool Info`
-   - Select or enter the extension ID when prompted
+    b. Get Tool Info:
+    - Open Command Palette
+    - Type `MCP-LMT: Get Tool Info`
+    - Select or enter the extension ID when prompted
 
-   c. Execute Tool:
-   - Open Command Palette
-   - Type `MCP-LMT: Execute Tool`
-   - Follow the prompts to select tool and enter parameters
+    c. Execute Tool:
+    - Open Command Palette
+    - Type `MCP-LMT: Execute Tool`
+    - Follow the prompts to select tool and enter parameters
 
 4. **Programmatic Usage**
-   For extension developers:
-   ```typescript
-   // List extensions
-   const extensions = await vscode.commands.executeCommand('mcp.lmt.listExtensions');
+    For extension developers:
 
-   // Get tool info
-   const toolInfo = await vscode.commands.executeCommand('mcp.lmt.getToolInfo', 'example.tool');
+```typescript
+// List extensions
+const extensions = await vscode.commands.executeCommand('mcp.lmt.listExtensions');
 
-   // Execute tool
-   const result = await vscode.commands.executeCommand('mcp.lmt.executeTool', {
-       toolId: 'example.tool',
-       params: { param1: 'value' }
-   });
-   ```
+// Get tool info
+const toolInfo = await vscode.commands.executeCommand('mcp.lmt.getToolInfo', 'example.tool');
+
+// Execute tool
+const result = await vscode.commands.executeCommand('mcp.lmt.executeTool', {
+    toolId: 'example.tool',
+    params: { param1: 'value' }
+});
+```
 
 ### Common Operations
 
 #### Discovering Tools
+
 ```typescript
 const extensions = await vscode.commands.executeCommand('mcp.lmt.listExtensions');
 ```
 
 #### Tool Execution
+
 ```typescript
 const response = await vscode.commands.executeCommand('mcp.lmt.executeTool', {
     toolId: 'example.tool',
@@ -133,16 +142,16 @@ const response = await vscode.commands.executeCommand('mcp.lmt.executeTool', {
 ### MCP Commands
 
 1. `mcp.lmt.listExtensions`
-   - Lists all LanguageModelTools-compatible extensions
-   - Returns: `Extension[]`
+    - Lists all LanguageModelTools-compatible extensions
+    - Returns: `Extension[]`
 
 2. `mcp.lmt.getToolInfo`
-   - Parameters: `toolId: string`
-   - Returns: Detailed tool information
+    - Parameters: `toolId: string`
+    - Returns: Detailed tool information
 
 3. `mcp.lmt.executeTool`
-   - Parameters: `{ toolId: string, params: any }`
-   - Returns: Tool execution results
+    - Parameters: `{ toolId: string, params: any }`
+    - Returns: Tool execution results
 
 ### Tool Provider Interface
 
@@ -170,6 +179,7 @@ interface ParameterDefinition {
 ### Response Formats
 
 Success Response:
+
 ```json
 {
     "status": "success",
@@ -181,6 +191,7 @@ Success Response:
 ```
 
 Error Response:
+
 ```json
 {
     "status": "error",
@@ -197,22 +208,25 @@ Error Response:
 ### Project Setup
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/username/mcp-lmt-bridge.git
-   cd mcp-lmt-bridge
-   ```
+
+```bash
+git clone https://github.com/username/mcp-lmt-bridge.git
+cd mcp-lmt-bridge
+```
 
 2. Install dependencies:
-   ```bash
-   npm install
-   ```
+
+```bash
+npm install
+```
 
 3. Build the extension:
-   ```bash
-   npm run compile
-   # or for production build:
-   npm run package
-   ```
+
+```bash
+npm run compile
+# or for production build:
+npm run package
+```
 
 ### Architecture Overview
 
@@ -235,19 +249,22 @@ graph TB
 ### Testing Guidelines
 
 1. **Unit Tests**
-   ```bash
-   npm run test:unit
-   ```
+
+```bash
+npm run test:unit
+```
 
 2. **Integration Tests**
-   ```bash
-   npm run test:integration
-   ```
+
+```bash
+npm run test:integration
+```
 
 3. **Test Coverage**
-   ```bash
-   npm run test:coverage
-   ```
+
+```bash
+npm run test:coverage
+```
 
 ### Contributing Guidelines
 
@@ -263,32 +280,33 @@ graph TB
 ### Common Issues
 
 1. **Connection Errors**
-   - Verify server port configuration
-   - Check firewall settings
-   - Ensure no port conflicts
+    - Verify server port configuration
+    - Check firewall settings
+    - Ensure no port conflicts
 
 2. **Tool Execution Failures**
-   - Validate parameter types
-   - Check tool availability
-   - Review error logs
+    - Validate parameter types
+    - Check tool availability
+    - Review error logs
 
 3. **Performance Issues**
-   - Monitor memory usage
-   - Check connection pooling
-   - Review active connections
+    - Monitor memory usage
+    - Check connection pooling
+    - Review active connections
 
 ### Error Codes
 
-| Code | Description | Resolution |
-|------|-------------|------------|
-| `CONN_REFUSED` | Connection refused | Check server status |
-| `INVALID_PARAMS` | Invalid parameters | Validate input format |
-| `TOOL_NOT_FOUND` | Tool not available | Verify tool ID |
-| `AUTH_FAILED` | Authentication failed | Check credentials |
+| Code           | Description         | Resolution            |
+|----------------|--------------------|-----------------------|
+| `CONN_REFUSED` | Connection refused | Check server status   |
+| `INVALID_PARAMS`| Invalid parameters | Validate input format |
+| `TOOL_NOT_FOUND`| Tool not available | Verify tool ID        |
+| `AUTH_FAILED`  | Authentication failed| Check credentials    |
 
 ### Logging
 
 Enable debug logging in `.vscode/settings.json`:
+
 ```json
 {
     "mcp-lmt-bridge.trace.server": "verbose",
@@ -296,4 +314,3 @@ Enable debug logging in `.vscode/settings.json`:
 }
 ```
 
-For additional support, file issues on the GitHub repository or contact the development team.

@@ -7,121 +7,139 @@ This guide helps you diagnose and resolve common issues with the MCP-LMT-Bridge 
 ### Installation Issues
 
 #### Issue: Extension Not Visible After Installation
+
 **Symptoms:**
 - Extension doesn't appear in `code --list-extensions`
 - Extension not visible in VS Code Extensions panel
 - Extension not activated on startup
 
 **Solutions:**
-1. Verify installation:
-   ```bash
-   # Remove existing installation
-   code --uninstall-extension mcp-lmt-bridge
 
-   # Clean install
-   npm run clean
-   npm run compile
-   npm run package:vsix
-   code --install-extension mcp-lmt-bridge-0.1.0.vsix
-   ```
+1. Verify installation:
+
+```bash
+# Remove existing installation
+code --uninstall-extension mcp-lmt-bridge
+
+# Clean install
+npm run clean
+npm run compile
+npm run package:vsix
+code --install-extension mcp-lmt-bridge-0.1.0.vsix
+```
 
 2. Check extension manifest:
-   - Ensure `onStartupFinished` activation event is present in package.json
-   - Verify extension ID matches: "mcp-lmt-bridge"
-   - Check VS Code version compatibility (^1.85.0)
+    - Ensure `onStartupFinished` activation event is present in package.json
+    - Verify extension ID matches: "mcp-lmt-bridge"
+    - Check VS Code version compatibility (^1.85.0)
 
 3. Review VS Code logs:
-   ```bash
-   # Windows: %APPDATA%\Code\logs\extension-host.log
-   # macOS/Linux: ~/.vscode/logs/extension-host.log
-   ```
+
+```bash
+# Windows: %APPDATA%\Code\logs\extension-host.log
+# macOS/Linux: ~/.vscode/logs/extension-host.log
+```
 
 ### Connection Problems
 
 #### Issue: Unable to Connect to MCP Server
+
 **Symptoms:**
 - "Connection refused" errors
 - Tools not appearing in the extension
 - Timeout errors when executing commands
 
 **Solutions:**
+
 1. Check server status:
-   ```bash
-   # Check if server is running
-   netstat -tulpn | grep 3000
-   ```
+
+```bash
+# Check if server is running
+netstat -tulpn | grep 3000
+```
 
 2. Verify port configuration:
-   ```json
-   {
-       "mcp-lmt-bridge": {
-           "serverPort": 3000,
-           "trace.server": "verbose",
-           "logLevel": "debug"
-       }
-   }
-   ```
+
+```json
+{
+    "mcp-lmt-bridge": {
+        "serverPort": 3000,
+        "trace.server": "verbose",
+        "logLevel": "debug"
+    }
+}
+```
 
 3. Check firewall settings:
-   ```bash
-   # Allow traffic on server port
-   sudo ufw allow 3000/tcp
-   ```
+
+```bash
+# Allow traffic on server port
+sudo ufw allow 3000/tcp
+```
 
 #### Issue: Frequent Disconnections
+
 **Symptoms:**
 - Random connection drops
 - "Connection reset" errors
 - Intermittent tool availability
 
 **Solutions:**
+
 1. Enable connection logging:
-   ```json
-   {
-       "mcp-lmt-bridge.trace.server": "verbose",
-       "mcp-lmt-bridge.logLevel": "debug"
-   }
-   ```
+
+```json
+{
+    "mcp-lmt-bridge.trace.server": "verbose",
+    "mcp-lmt-bridge.logLevel": "debug"
+}
+```
 
 2. Check session timeout settings in server:
-   * Default session timeout: 30 minutes
-   * Sessions are cleaned up every minute
+    - Default session timeout: 30 minutes
+    - Sessions are cleaned up every minute
 
 ### Tool Execution Issues
 
 #### Issue: Tool Execution Failures
+
 **Symptoms:**
 - "Tool not found" errors
 - Parameter validation failures
 - Execution timeouts
 
 **Solutions:**
+
 1. Verify tool registration:
-   ```typescript
-   // Check if tool is registered
-   const tools = await vscode.commands.executeCommand('mcp.lmt.listExtensions');
-   console.log(tools);
-   ```
+
+```typescript
+// Check if tool is registered
+const tools = await vscode.commands.executeCommand('mcp.lmt.listExtensions');
+console.log(tools);
+```
 
 2. Validate parameters:
-   ```typescript
-   // Example of proper parameter formatting
-   const params = {
-       input: "test",
-       options: {
-           timeout: 5000,
-           retries: 3
-       }
-   };
-   ```
+
+```typescript
+// Example of proper parameter formatting
+const params = {
+    input: "test",
+    options: {
+        timeout: 5000,
+        retries: 3
+    }
+};
+```
 
 3. Check execution logs:
-   ```bash
-   # View extension logs
-   code --log-level debug
-   ```
+
+```bash
+# View extension logs
+code --log-level debug
+```
 
 #### Issue: Performance Problems
+
 **Symptoms:**
 - Slow tool execution
 - High memory usage
@@ -135,50 +153,56 @@ This guide helps you diagnose and resolve common issues with the MCP-LMT-Bridge 
 ### Integration Issues
 
 #### Issue: Extension Conflicts
+
 **Symptoms:**
 - Tools from other extensions not visible
 - Command conflicts
 - Extension activation failures
 
 **Solutions:**
+
 1. Check extension logs:
-   ```bash
-   # Open extension development host
-   code --extensionDevelopmentPath=/path/to/extension
-   ```
+
+```bash
+# Open extension development host
+code --extensionDevelopmentPath=/path/to/extension
+```
 
 2. Verify extension manifest:
-   ```json
-   {
-       "activationEvents": [
-           "onCommand:mcp.lmt.listExtensions",
-           "onCommand:mcp.lmt.executeTool"
-       ]
-   }
-   ```
+
+```json
+{
+    "activationEvents": [
+        "onCommand:mcp.lmt.listExtensions",
+        "onCommand:mcp.lmt.executeTool"
+    ]
+}
+```
 
 3. Review extension dependencies:
-   ```json
-   {
-       "extensionDependencies": [
-           "required.extension"
-       ]
-   }
-   ```
+
+```json
+{
+    "extensionDependencies": [
+        "required.extension"
+    ]
+}
+```
 
 ## JSON-RPC Error Codes
 
-| Code | Description | Solution |
-|------|-------------|----------|
-| -32700 | Parse error | Check JSON message format |
-| -32600 | Invalid request | Verify request structure and JSON-RPC version |
-| -32601 | Method not found | Check method name and available commands |
-| -32602 | Invalid params | Verify parameter types and required fields |
-| -32603 | Internal error | Check server logs for details |
+| Code    | Description        | Solution                                    |
+|---------|-------------------|--------------------------------------------|
+| -32700  | Parse error       | Check JSON message format                   |
+| -32600  | Invalid request   | Verify request structure and JSON-RPC version |
+| -32601  | Method not found  | Check method name and available commands    |
+| -32602  | Invalid params    | Verify parameter types and required fields  |
+| -32603  | Internal error    | Check server logs for details              |
 
 ## Diagnostic Tools
 
 ### System Information
+
 ```bash
 # Get extension info
 code --list-extensions --show-versions
@@ -191,6 +215,7 @@ top -b -n 1
 ```
 
 ### Log Analysis
+
 ```bash
 # View extension logs
 code --log-level debug
@@ -203,6 +228,7 @@ journalctl -u code.service
 ```
 
 ### Network Diagnostics
+
 ```bash
 # Check server connectivity
 curl -v http://localhost:3000/health

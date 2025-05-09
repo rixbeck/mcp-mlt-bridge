@@ -5,11 +5,13 @@ This document provides detailed information about the MCP-LMT-Bridge API, includ
 ## MCP Commands
 
 ### 1. List Extensions
+
 - **Command**: `mcp.lmt.listExtensions`
 - **Display Name**: `MCP-LMT: List Extensions`
 - **Description**: Lists all LanguageModelTools-compatible extensions
 - **Parameters**: None
 - **Returns**: Array of Extension objects
+
 ```typescript
 interface Extension {
     id: string;
@@ -20,11 +22,13 @@ interface Extension {
 ```
 
 ### 2. Get Tool Information
+
 - **Command**: `mcp.lmt.getToolInfo`
 - **Display Name**: `MCP-LMT: Get Tool Info`
-- **Parameters**: 
-  - `toolId: string` - Unique identifier of the tool
+- **Parameters**:
+    - `toolId: string` - Unique identifier of the tool
 - **Returns**: Detailed tool information
+
 ```typescript
 interface ToolInfo {
     id: string;
@@ -38,9 +42,11 @@ interface ToolInfo {
 ```
 
 ### 3. Execute Tool
+
 - **Command**: `mcp.lmt.executeTool`
 - **Display Name**: `MCP-LMT: Execute Tool`
 - **Parameters**:
+
 ```typescript
 interface ExecuteToolParams {
     toolId: string;
@@ -54,11 +60,13 @@ interface ExecuteToolOptions {
     ignoreErrors?: boolean;
 }
 ```
+
 - **Returns**: Tool-specific execution results
 
 ## Interfaces
 
 ### Tool Provider
+
 ```typescript
 interface MCPToolProvider {
     getTools(): Tool[];
@@ -69,6 +77,7 @@ interface MCPToolProvider {
 ```
 
 ### Tool Definition
+
 ```typescript
 interface Tool {
     id: string;
@@ -101,6 +110,7 @@ interface ReturnTypeDefinition {
 ### Response Format
 
 #### Success Response
+
 ```json
 {
     "jsonrpc": "2.0",
@@ -112,6 +122,7 @@ interface ReturnTypeDefinition {
 ```
 
 #### Error Response
+
 ```json
 {
     "jsonrpc": "2.0",
@@ -125,17 +136,18 @@ interface ReturnTypeDefinition {
 
 ## JSON-RPC Error Codes
 
-| Code | Description |
-|------|-------------|
-| -32700 | Parse error |
-| -32600 | Invalid request |
-| -32601 | Method not found |
-| -32602 | Invalid params |
-| -32603 | Internal error |
+| Code    | Description       |
+|---------|------------------|
+| -32700  | Parse error      |
+| -32600  | Invalid request  |
+| -32601  | Method not found |
+| -32602  | Invalid params   |
+| -32603  | Internal error   |
 
 ## Session Management
 
 The MCP server implements session management with the following characteristics:
+
 - Sessions are created upon WebSocket connection
 - Session timeout: 30 minutes of inactivity
 - Sessions are automatically cleaned up every minute
