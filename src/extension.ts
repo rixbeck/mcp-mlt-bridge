@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { MCPServer } from './server/mcpServer';
 import { ExtensionRegistry } from './registry/extensionRegistry';
 import { CommandExecutor } from './executor/commandExecutor';
+import { MCPStatusManager } from './status/mcpStatusManager';
 
 /**
  * Global instance of the MCP server
@@ -28,6 +29,39 @@ export async function activate(context: vscode.ExtensionContext) {
     const registry = new ExtensionRegistry();
     const executor = new CommandExecutor(registry);
     mcpServer = new MCPServer(registry, executor);
+    
+    // Initialize status manager
+    const statusManager = new MCPStatusManager(mcpServer);
+    context.subscriptions.push(statusManager);
+
+    // Register status bar commands
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mcp-lmt-bridge.showServerInfo', () => {
+            const port = mcpServer.getPort();
+            const sessionCount = mcpServer.getSessionCount();
+            vscode.window.showInformationMessage(
+                `MCP Server Info:\nPort: ${port || 'Not running'}\nActive Sessions: ${sessionCount}`
+            );
+        }),
+        vscode.commands.registerCommand('mcp-lmt-bridge.startServer', async () => {
+            try {
+                await mcpServer.start();
+                vscode.window.showInformationMessage('MCP Server started successfully');
+            } catch (error) {
+                vscode.window.showErrorMessage(
+                    `Failed to start MCP Server: ${error instanceof Error ? error.message : 'Unknown error'}`
+                );
+            }
+        }),
+        vscode.commands.registerCommand('mcp-lmt-bridge.showActiveRequests', () => {
+            const sessions = mcpServer.getSessionInfo();
+            if (sessions.length === 0) {
+                vscode.window.showInformationMessage('No active sessions');
+            } else {
+                vscode.window.showInformationMessage('Active Sessions:\n' + sessions.join('\n'));
+            }
+        })
+    );
 
     try {
         await mcpServer.start();
@@ -59,4 +93,12 @@ export function deactivate() {
     if (mcpServer) {
         mcpServer.stop();
     }
+}
+
+/**
+ * Make mcpServer accessible in tests
+ * @internal
+ */
+export function getMCPServer(): MCPServer {
+    return mcpServer;
 }

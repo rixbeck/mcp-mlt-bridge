@@ -170,4 +170,60 @@ suite('MCPServer Test Suite', () => {
             client.send(JSON.stringify(request));
         }
     });
+
+    test('Server should track port number correctly', async () => {
+        assert.strictEqual(server.getPort(), testPort);
+        await server.stop();
+        assert.strictEqual(server.getPort(), undefined);
+    });
+
+    test('Server should manage session count correctly', async () => {
+        assert.strictEqual(server.getSessionCount(), 1); // One client from setup
+        
+        // Add another client
+        const client2 = new WebSocket(`ws://localhost:${testPort}`);
+        await new Promise<void>(resolve => client2.on('open', resolve));
+        
+        assert.strictEqual(server.getSessionCount(), 2);
+        
+        // Close second client
+        client2.close();
+        await new Promise<void>(resolve => setTimeout(resolve, 100));
+        
+        assert.strictEqual(server.getSessionCount(), 1);
+    });
+
+    test('Server should provide session information', async () => {
+        const info = server.getSessionInfo();
+        assert.strictEqual(info.length, 1); // One client from setup
+        assert.match(info[0], /Session .+ \(connected \d+s ago\)/);
+    });
+
+    test('Server should emit state change events', async () => {
+        const states: string[] = [];
+        server.on('stateChanged', state => states.push(state));
+
+        await server.stop();
+        await server.start(testPort);
+
+        assert.deepStrictEqual(states, ['processing', 'stopped', 'processing', 'started']);
+    });
+
+    test('Server should emit request events', (done) => {
+        const events: string[] = [];
+        server.on('requestStart', () => events.push('start'));
+        server.on('requestEnd', () => {
+            events.push('end');
+            assert.deepStrictEqual(events, ['start', 'end']);
+            done();
+        });
+
+        const request = {
+            jsonrpc: '2.0',
+            id: 'test',
+            method: 'mcp.lmt.listExtensions',
+            params: {}
+        };
+        client.send(JSON.stringify(request));
+    });
 });

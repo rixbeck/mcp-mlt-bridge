@@ -1,7 +1,9 @@
 import * as WebSocket from 'ws';
 import * as vscode from 'vscode';
+import { EventEmitter } from 'events';
 import { ExtensionRegistry } from '../registry/extensionRegistry';
 import { CommandExecutor } from '../executor/commandExecutor';
+import { ServerState } from '../status/mcpStatusManager';
 
 /**
  * Extends WebSocket with health check property
@@ -55,7 +57,7 @@ interface MCPResponse {
  * Handles WebSocket connections, session management, and request processing
  * @class MCPServer
  */
-export class MCPServer {
+export class MCPServer extends EventEmitter {
     private static readonly PROTOCOL_VERSION = '2.0';
     private static readonly SESSION_TIMEOUT = 1800000; // 30 minutes
     private static readonly RETRY_DELAY = 1000; // 1 second
@@ -65,12 +67,41 @@ export class MCPServer {
     private sessions: Map<string, MCPSession> = new Map();
     private readonly basePort: number;
     private readonly maxPortRetries = 10;
+    private currentPort?: number;
+
+    /**
+     * Gets the current port number the server is running on
+     * @returns {number | undefined} The current port number, or undefined if server is not running
+     */
+    public getPort(): number | undefined {
+        return this.currentPort;
+    }
+
+    /**
+     * Gets the number of active sessions
+     * @returns {number} Number of active sessions
+     */
+    public getSessionCount(): number {
+        return this.sessions.size;
+    }
+
+    /**
+     * Gets information about active sessions
+     * @returns {Array<string>} Array of session IDs with their connection times
+     */
+    public getSessionInfo(): string[] {
+        return Array.from(this.sessions.entries()).map(([id, session]) => {
+            const duration = Math.floor((Date.now() - session.connectedAt) / 1000);
+            return `Session ${id} (connected ${duration}s ago)`;
+        });
+    }
 
     constructor(
         private readonly registry: ExtensionRegistry,
         private readonly executor: CommandExecutor,
         port: number = 3000
     ) {
+        super();
         this.basePort = port;
         setInterval(() => this.cleanupSessions(), 60000); // Cleanup every minute
     }
@@ -101,11 +132,13 @@ export class MCPServer {
      */
     public async start(port?: number): Promise<void> {
         let lastError: Error | undefined;
+        this.emit('stateChanged', ServerState.PROCESSING);
         
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
                 const serverPort = port || await this.findAvailablePort(this.basePort);
                 this.server = new WebSocket.Server({ port: serverPort });
+                this.currentPort = serverPort;
 
                 // Set up server event handlers
                 this.server.on('connection', (socket: WebSocket) => {
@@ -140,6 +173,7 @@ export class MCPServer {
 
                 // Start health check monitoring
                 this.startHealthCheck();
+                this.emit('stateChanged', ServerState.STARTED);
                 return;
 
             } catch (error) {
@@ -161,6 +195,7 @@ export class MCPServer {
      * @returns {Promise<void>}
      */
     public async stop(): Promise<void> {
+        this.emit('stateChanged', ServerState.PROCESSING);
         for (const [_, session] of this.sessions) {
             session.socket.close();
         }
@@ -170,6 +205,8 @@ export class MCPServer {
             await new Promise<void>((resolve) => {
                 this.server!.close(() => resolve());
             });
+            this.currentPort = undefined;
+            this.emit('stateChanged', ServerState.STOPPED);
         }
     }
 
@@ -200,6 +237,7 @@ export class MCPServer {
 
         mcpSocket.on('message', async (data: WebSocket.RawData) => {
             try {
+                this.emit('requestStart');
                 const request = this.validateRequest(JSON.parse(data.toString()));
                 session.lastActivity = Date.now();
                 const response = await this.handleRequest(request, session);
@@ -207,6 +245,7 @@ export class MCPServer {
                 if (mcpSocket.readyState === WebSocket.OPEN) {
                     mcpSocket.send(JSON.stringify(response));
                 }
+                this.emit('requestEnd');
             } catch (error) {
                 if (mcpSocket.readyState === WebSocket.OPEN) {
                     let errorResponse: MCPResponse = {

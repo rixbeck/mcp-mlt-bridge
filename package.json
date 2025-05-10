@@ -38,6 +38,21 @@
       {
         "command": "mcp.lmt.executeTool",
         "title": "MCP-LMT: Execute Tool"
+      },
+      {
+        "command": "mcp-lmt-bridge.showServerInfo",
+        "title": "MCP-LMT: Show Server Information",
+        "category": "MCP"
+      },
+      {
+        "command": "mcp-lmt-bridge.startServer",
+        "title": "MCP-LMT: Start Server",
+        "category": "MCP"
+      },
+      {
+        "command": "mcp-lmt-bridge.showActiveRequests",
+        "title": "MCP-LMT: Show Active Requests",
+        "category": "MCP"
       }
     ]
   },
