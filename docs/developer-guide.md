@@ -59,6 +59,8 @@ mcp-lmt-bridge/
 │   ├── extension.ts           # Extension entry point
 │   ├── server/
 │   │   └── mcpServer.ts      # MCP server implementation
+│   ├── status/
+│   │   └── mcpStatusManager.ts  # Status bar management
 │   ├── registry/
 │   │   └── extensionRegistry.ts  # Extension management
 │   ├── executor/
@@ -148,6 +150,101 @@ npm run test:watch
 ```typescript
 console.log('Debug message');
 console.error('Error message');
+```
+
+## Status Bar Integration
+
+The MCP-LMT-Bridge includes a status bar integration that provides real-time server status updates and interactive commands.
+
+### Status Manager Implementation
+
+```typescript
+// Example status manager usage
+import { MCPStatusManager, ServerState } from './status/mcpStatusManager';
+
+// Create and initialize status manager
+const statusManager = new MCPStatusManager(server);
+context.subscriptions.push(statusManager);
+
+// Status manager handles these events automatically:
+server.on('stateChanged', (state: ServerState) => {
+    // Updates status bar UI
+});
+
+server.on('requestStart', () => {
+    // Shows processing state
+});
+
+server.on('requestEnd', () => {
+    // Returns to normal state
+});
+```
+
+### Status Bar Commands
+
+The status bar item provides three interactive commands:
+
+1. Show Server Info
+```typescript
+vscode.commands.registerCommand('mcp-lmt-bridge.showServerInfo', () => {
+    const info = {
+        port: server.getPort(),
+        sessions: server.getSessionCount()
+    };
+    vscode.window.showInformationMessage(
+        `MCP Server Info:\nPort: ${info.port}\nActive Sessions: ${info.sessions}`
+    );
+});
+```
+
+2. Start Server
+```typescript
+vscode.commands.registerCommand('mcp-lmt-bridge.startServer', async () => {
+    try {
+        await server.start();
+        vscode.window.showInformationMessage('MCP Server started successfully');
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to start MCP Server: ${error}`);
+    }
+});
+```
+
+3. Show Active Requests
+```typescript
+vscode.commands.registerCommand('mcp-lmt-bridge.showActiveRequests', () => {
+    const sessions = server.getSessionInfo();
+    vscode.window.showInformationMessage(
+        sessions.length > 0
+            ? 'Active Sessions:\n' + sessions.join('\n')
+            : 'No active sessions'
+    );
+});
+```
+
+### Testing Status Bar Integration
+
+```typescript
+describe('MCPStatusManager', () => {
+    let statusManager: MCPStatusManager;
+    let server: MCPServer;
+
+    beforeEach(() => {
+        server = new MCPServer(registry, executor);
+        statusManager = new MCPStatusManager(server);
+    });
+
+    it('should update status on server state change', () => {
+        server.emit('stateChanged', ServerState.STARTED);
+        // Verify status bar updates
+    });
+
+    it('should handle request lifecycle', () => {
+        server.emit('requestStart');
+        // Verify processing state
+        server.emit('requestEnd');
+        // Verify return to normal state
+    });
+});
 ```
 
 ## Implementation Guidelines
