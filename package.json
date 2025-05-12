@@ -64,14 +64,14 @@
     "vscode:prepublish": "npm run package",
     "clean": "rimraf dist out *.vsix",
     "compile": "webpack",
-    "watch": "webpack --watch",
+    "watch": "webpack --mode development --watch --devtool source-map",
     "package": "webpack --mode production --devtool hidden-source-map",
     "package:vsix": "vsce package",
     "lint": "eslint src --ext ts",
-    "pretest": "npm run clean && npm run compile",
-    "test": "node ./dist/test/runTest.js",
-    "test:compile": "webpack --config webpack.config.js",
-    "test:watch": "webpack --config webpack.config.js --watch"
+    "pretest": "npm run clean && cross-env NODE_ENV=test npm run compile",
+    "test": "cross-env NODE_ENV=test node ./dist/test/runTest.js",
+    "test:compile": "cross-env NODE_ENV=test webpack --config webpack.config.js",
+    "test:watch": "cross-env NODE_ENV=test webpack --config webpack.config.js --watch"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.1",
@@ -82,6 +82,7 @@
     "@typescript-eslint/parser": "^6.7.0",
     "@vscode/test-electron": "^2.3.4",
     "@vscode/vsce": "^3.3.2",
+    "cross-env": "^7.0.3",
     "eslint": "^8.26.0",
     "mocha": "^10.2.0",
     "rimraf": "^5.0.5",

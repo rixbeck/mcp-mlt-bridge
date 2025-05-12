@@ -31,7 +31,10 @@ const config = {
       path.resolve(__dirname, 'src')
     ],
     alias: {
-      'vscode': path.resolve(__dirname, 'src/test/suite/mockVscode.ts')
+      // Only use mockVscode for tests
+      'vscode': process.env.NODE_ENV === 'test' ?
+        path.resolve(__dirname, 'src/test/suite/mockVscode.ts') :
+        'commonjs vscode'
     }
   },
   module: {
@@ -51,7 +54,7 @@ const config = {
       }
     ]
   },
-  devtool: 'nosources-source-map',
+  devtool: 'source-map',
   infrastructureLogging: {
     level: "log",
   },
