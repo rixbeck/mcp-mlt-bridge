@@ -13,7 +13,15 @@ import { EventEmitter } from "events";
 
 interface ToolCallParams {
   name: string;
-  arguments: Record<string, unknown>;
+  arguments?: Record<string, unknown>;
+}
+
+interface RequestHandlers {
+  'tools/list': (request: any) => Promise<{ tools: Tool[] }>;
+  'tools/call': (request: any) => Promise<{
+    content: { type: string; text: string; }[];
+    isError: boolean;
+  }>;
 }
 
 export class MCPServer extends EventEmitter {
@@ -34,12 +42,71 @@ export class MCPServer extends EventEmitter {
     }
   };
 
+  // Request handlers
+  private readonly listToolsHandler = async (_request: any): Promise<{ tools: Tool[] }> => ({
+    tools: [MCPServer.LIST_EXTENSIONS_TOOL]
+  });
+
+  private readonly callToolHandler = async (request: any): Promise<{
+    content: { type: string; text: string; }[];
+    isError: boolean;
+  }> => {
+    this.emit('requestStart');
+    try {
+      const params = request.params as unknown as ToolCallParams;
+      const { name, arguments: args } = params;
+
+      // Check if arguments is defined
+      if (!args && name !== 'list_extensions') {
+        return {
+          content: [{ type: "text", text: "No arguments provided" }],
+          isError: true
+        };
+      }
+
+      // Handle different tools
+      switch (name) {
+        case "list_extensions": {
+          const extensions = await this.registry.listExtensions();
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Available extensions: ${extensions.map(ext => ext.id).join(", ")}`,
+              },
+            ],
+            isError: false
+          };
+        }
+
+        default:
+          return {
+            content: [{ type: "text", text: `Unknown tool: ${name}` }],
+            isError: true
+          };
+      }
+    } catch (error) {
+      this.emit('error', error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true
+      };
+    } finally {
+      this.emit('requestEnd');
+    }
+  };
+
   constructor(registry: ExtensionRegistry) {
     super();
     this.registry = registry;
 
     // Create server instance with tools enabled
-    const config = {
+    this.server = new Server({
       name: "mcp-lmt-bridge",
       version: "0.1.0",
       capabilities: {
@@ -48,59 +115,10 @@ export class MCPServer extends EventEmitter {
       },
       supportedTools: [MCPServer.LIST_EXTENSIONS_TOOL],
       requestHandlers: {
-        'tools/list': async () => ({
-          tools: [MCPServer.LIST_EXTENSIONS_TOOL]
-        }),
-        'tools/call': async (request: ServerRequest) => {
-          this.emit('requestStart');
-          try {
-            const params = request.params as unknown as ToolCallParams;
-            const { name, arguments: args } = params;
-
-            if (!args) {
-              throw new Error("No arguments provided");
-            }
-
-            switch (name) {
-              case "list_extensions": {
-                const extensions = await this.registry.listExtensions();
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text: `Available extensions: ${extensions.map(ext => ext.id).join(", ")}`,
-                    },
-                  ],
-                  isError: false,
-                };
-              }
-
-              default:
-                return {
-                  content: [{ type: "text", text: `Unknown tool: ${name}` }],
-                  isError: true,
-                };
-            }
-          } catch (error) {
-            this.emit('error', error);
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-                },
-              ],
-              isError: true,
-            };
-          } finally {
-            this.emit('requestEnd');
-          }
-        }
+        'tools/list': this.listToolsHandler,
+        'tools/call': this.callToolHandler
       }
-    };
-
-    // Initialize server with capabilities
-    this.server = new Server(config);
+    });
   }
 
   public async start(port: number = 3000): Promise<void> {
@@ -151,6 +169,14 @@ export class MCPServer extends EventEmitter {
 
   public getSessionCount(): number {
     return this.activeConnections;
+  }
+
+  // Expose handlers for testing
+  public getHandlers(): RequestHandlers {
+    return {
+      'tools/list': this.listToolsHandler,
+      'tools/call': this.callToolHandler
+    };
   }
 
   protected onConnect(): void {

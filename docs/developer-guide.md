@@ -58,7 +58,7 @@ mcp-lmt-bridge/
 ├── src/
 │   ├── extension.ts           # Extension entry point
 │   ├── server/
-│   │   └── mcpServer.ts      # MCP server implementation
+│   │   └── sseServer.ts      # MCP server implementation
 │   ├── status/
 │   │   └── mcpStatusManager.ts  # Status bar management
 │   ├── registry/

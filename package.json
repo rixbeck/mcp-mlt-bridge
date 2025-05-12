@@ -22,6 +22,9 @@
   ],
   "activationEvents": [
     "onStartupFinished",
+    "onCommand:mcp.lmt.listExtensions",
+    "onCommand:mcp.lmt.getToolInfo",
+    "onCommand:mcp.lmt.executeTool",
     "onCapability:languageModelTools",
     "onCapability:webview"
   ],
@@ -72,7 +75,7 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.1",
-    "@types/node": "^22.14.0",
+    "@types/node": "^22.15.17",
     "@types/vscode": "^1.85.0",
     "@types/ws": "^8.5.10",
     "@typescript-eslint/eslint-plugin": "^6.7.0",
@@ -83,11 +86,12 @@
     "mocha": "^10.2.0",
     "rimraf": "^5.0.5",
     "ts-loader": "^9.5.1",
-    "typescript": "^5.3.0",
+    "typescript": "^5.8.3",
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.1",
     "fast-glob": "^3.3.2",
     "ws": "^8.16.0"
   },

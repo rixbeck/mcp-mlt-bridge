@@ -11,7 +11,7 @@ const config = {
     'test/suite/extension.test': './src/test/suite/extension.test.ts',
     'test/suite/extensionRegistry.test': './src/test/suite/extensionRegistry.test.ts',
     'test/suite/commandExecutor.test': './src/test/suite/commandExecutor.test.ts',
-    'test/suite/mcpServer.test': './src/test/suite/mcpServer.test.ts'
+    'test/suite/sseServer.test': './src/test/suite/sseServer.test.ts'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
