@@ -5,16 +5,16 @@ import { MCPStatusManager } from "../status/mcpStatusManager";
 import { ExtensionRegistry } from "../registry/extensionRegistry";
 import {
   CallToolRequestSchema,
-  ListResourcesRequestSchema,
   ListToolsRequestSchema,
-  ReadResourceRequestSchema,
-  CallToolResult,
-  TextContent,
-  ImageContent,
   Tool,
+  ServerRequest
 } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
 import { EventEmitter } from "events";
+
+interface ToolCallParams {
+  name: string;
+  arguments: Record<string, unknown>;
+}
 
 export class MCPServer extends EventEmitter {
   private server: Server;
@@ -37,70 +37,70 @@ export class MCPServer extends EventEmitter {
   constructor(registry: ExtensionRegistry) {
     super();
     this.registry = registry;
-    
-    // Create server instance
-    this.server = new Server({
+
+    // Create server instance with tools enabled
+    const config = {
       name: "mcp-lmt-bridge",
       version: "0.1.0",
       capabilities: {
-        resources: {},
-        tools: {},
+        tools: true,
+        resources: {}
       },
-    });
-    
-    this.registerToolHandlers();
-  }
-  
-  private registerToolHandlers(): void {
-    // Tool handlers
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: [MCPServer.LIST_EXTENSIONS_TOOL],
-    }));
+      supportedTools: [MCPServer.LIST_EXTENSIONS_TOOL],
+      requestHandlers: {
+        'tools/list': async () => ({
+          tools: [MCPServer.LIST_EXTENSIONS_TOOL]
+        }),
+        'tools/call': async (request: ServerRequest) => {
+          this.emit('requestStart');
+          try {
+            const params = request.params as unknown as ToolCallParams;
+            const { name, arguments: args } = params;
 
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      this.emit('requestStart');
-      try {
-        const { name, arguments: args } = request.params;
+            if (!args) {
+              throw new Error("No arguments provided");
+            }
 
-        if (!args) {
-          throw new Error("No arguments provided");
-        }
+            switch (name) {
+              case "list_extensions": {
+                const extensions = await this.registry.listExtensions();
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text: `Available extensions: ${extensions.map(ext => ext.id).join(", ")}`,
+                    },
+                  ],
+                  isError: false,
+                };
+              }
 
-        switch (name) {
-          case "list_extensions": {
-            const extensions = await this.registry.listExtensions();
+              default:
+                return {
+                  content: [{ type: "text", text: `Unknown tool: ${name}` }],
+                  isError: true,
+                };
+            }
+          } catch (error) {
+            this.emit('error', error);
             return {
               content: [
                 {
                   type: "text",
-                  text: `Available extensions: ${extensions.join(", ")}`,
+                  text: `Error: ${error instanceof Error ? error.message : String(error)}`,
                 },
               ],
-              isError: false,
-            };
-          }
-
-          default:
-            return {
-              content: [{ type: "text", text: `Unknown tool: ${name}` }],
               isError: true,
             };
+          } finally {
+            this.emit('requestEnd');
+          }
         }
-      } catch (error) {
-        this.emit('error', error);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
-      } finally {
-        this.emit('requestEnd');
       }
-    });
+    };
+
+    // Initialize server with capabilities
+    this.server = new Server(config);
   }
 
   public async start(port: number = 3000): Promise<void> {
@@ -125,7 +125,7 @@ export class MCPServer extends EventEmitter {
     });
   }
   
-  public stop(): Promise<void> {
+  public async stop(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.httpServer) {
         resolve();
@@ -163,11 +163,3 @@ export class MCPServer extends EventEmitter {
     this.emit('connectionChanged', this.activeConnections);
   }
 }
-
-// Example usage:
-// const registry = new ExtensionRegistry();
-// const mcServer = new MCServer(registry);
-// mcServer.start().catch((error) => {
-//   console.error("Fatal error running server:", error);
-//   process.exit(1);
-// });
