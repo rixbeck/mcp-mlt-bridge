@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MCPServer } from '../server/sseServer';
+import { MCPServer } from '../server/fastmcpServer';
 import { EventEmitter } from 'events';
 
 /**

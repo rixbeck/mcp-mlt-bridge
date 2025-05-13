@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+      "LMTBridge": {
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 20,
+      "transportType": "sse",
+      "url": "http://localhost:3000/sse",
+      "alwaysAllow": []
+    }
+  }
+}

@@ -22,9 +22,6 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onCommand:mcp.lmt.listExtensions",
-    "onCommand:mcp.lmt.getToolInfo",
-    "onCommand:mcp.lmt.executeTool",
     "onCapability:languageModelTools",
     "onCapability:webview"
   ],
@@ -92,8 +89,10 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.11.1",
+    "@valibot/to-json-schema": "^1.1.0",
+    "effect": "^3.15.0",
     "fast-glob": "^3.3.2",
+    "fastmcp": "1.21.0",
     "ws": "^8.16.0"
   },
   "repository": {

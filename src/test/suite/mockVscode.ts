@@ -4,6 +4,8 @@ import { VSCodeAPI } from '../../executor/commandExecutor';
 export class MockVSCode implements VSCodeAPI {
     private registeredCommands = new Map<string, (...args: any[]) => any>();
     private readonly mockExtensionPath = '/test/path';
+    private lastShownMessage: string | undefined;
+
 
     private mockExtensions = {
         getExtension: (id: string): vscode.Extension<any> => ({
@@ -45,6 +47,19 @@ export class MockVSCode implements VSCodeAPI {
             },
             getCommands: async () => Array.from(this.registeredCommands.keys())
         };
+    }
+
+    public get window() {
+        return {
+            showInformationMessage: async (message: string) => {
+                this.lastShownMessage = message;
+                return undefined;
+            }
+        };
+    }
+
+    public getLastShownMessage(): string | undefined {
+        return this.lastShownMessage;
     }
 }
 

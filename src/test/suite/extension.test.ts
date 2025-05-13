@@ -81,7 +81,9 @@ suite('Extension Test Suite', () => {
         const expectedCommands = [
             'mcp.lmt.listExtensions',
             'mcp.lmt.getToolInfo',
-            'mcp.lmt.executeTool'
+            'mcp.lmt.executeTool',
+            'mcp-lmt-bridge.showServerInfo',
+            'mcp-lmt-bridge.startServer'
         ];
 
         for (const cmd of expectedCommands) {
@@ -100,5 +102,17 @@ suite('Extension Test Suite', () => {
             assert.ok(Array.isArray(result), 'listExtensions should return an array');
             return result;
         }, 5, 2000); // 5 attempts, 2 second delay between attempts
+    });
+
+    test('ShowServerInfo command should display server information', async function() {
+        this.timeout(5000);
+        const mockVscode = await import('./mockVscode');
+        
+        await vscode.commands.executeCommand('mcp-lmt-bridge.showServerInfo');
+        
+        const message = mockVscode.mockVscode.getLastShownMessage();
+        assert.ok(message?.includes('MCP Server Info'), 'Info message should be shown');
+        assert.ok(message?.includes('Port:'), 'Port information should be included');
+        assert.ok(message?.includes('Active Sessions:'), 'Session count should be included');
     });
 });

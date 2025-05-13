@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MCPServer } from './server/sseServer';
+import { MCPServer } from './server/fastmcpServer';
 import { ExtensionRegistry } from './registry/extensionRegistry';
 import { CommandExecutor } from './executor/commandExecutor';
 import { MCPStatusManager } from './status/mcpStatusManager';
@@ -38,15 +38,13 @@ export async function activate(context: vscode.ExtensionContext) {
     // Initialize MCP server
     mcpServer = new MCPServer(registry);
     
-    // Initialize status manager
-    const statusManager = new MCPStatusManager(mcpServer);
-    context.subscriptions.push(statusManager);
-
     // Register status bar commands
     context.subscriptions.push(
         vscode.commands.registerCommand('mcp-lmt-bridge.showServerInfo', () => {
+            console.log('Getting MCP server status information...');
             const port = mcpServer?.getPort();
             const sessionCount = mcpServer?.getSessionCount() ?? 0;
+            console.log(`MCP Server status - Port: ${port || 'Not running'}, Active Sessions: ${sessionCount}`);
             vscode.window.showInformationMessage(
                 `MCP Server Info:\nPort: ${port || 'Not running'}\nActive Sessions: ${sessionCount}`
             );
@@ -65,14 +63,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
     try {
         await mcpServer.start();
-        vscode.window.showInformationMessage('MCP-LMT Bridge is now active');
+        vscode.window.showInformationMessage('LMT Bridge is now active');
     } catch (error) {
-        vscode.window.showErrorMessage(`Failed to start MCP-LMT Bridge: ${error}`);
+        vscode.window.showErrorMessage(`Failed to start LMT Bridge: ${error}`);
     }
 }
 
 /**
- * Deactivates the MCP-LMT Bridge extension
+ * Deactivates the LMT Bridge extension
  * Stops the MCP server and cleans up resources
  */
 export function deactivate() {
