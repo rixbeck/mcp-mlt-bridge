@@ -9,9 +9,10 @@ The MCP-LMT-Bridge creates an MCP server that enables AI chat extensions to leve
 ## Core Features
 
 1. MCP Server Implementation
-   - Acts as a dedicated MCP server within VSCode
-   - Handles incoming requests from AI chat extensions
+   - Implements FastMCP protocol for efficient server communication
+   - Handles incoming requests from AI chat extensions via SSE
    - Manages communication protocol and data translation
+   - Provides real-time status monitoring and visualization
 
 2. Extension Discovery & Mapping
    - Lists all installed VSCode extensions with LanguageModelTools API support
@@ -26,15 +27,37 @@ The MCP-LMT-Bridge creates an MCP server that enables AI chat extensions to leve
 ## Technical Requirements
 
 - Visual Studio Code 1.85.0 or higher
+- FastMCP v1.0.0 or higher
 - MCP Protocol compliance
 - LanguageModelTools API compatibility
+- Node.js 16.x or higher
 
 ## Primary Commands
 
 - `mcp.lmt.listExtensions`: Lists all LanguageModelTools-compatible extensions
 - `mcp.lmt.getToolInfo`: Retrieves detailed tool information for a specific extension
 - `mcp.lmt.executeTool`: Executes a specified tool with provided parameters
+- `mcp-lmt-bridge.showServerInfo`: Displays current server status and session information
+- `mcp-lmt-bridge.startServer`: Manually starts the MCP server if not running
 
 ## API Reference
 
-Extension authors can reference the [LanguageModelTools API documentation](https://code.visualstudio.com/api/extension-guides/tools) for implementation details.
+Extension authors can reference:
+- [LanguageModelTools API documentation](https://code.visualstudio.com/api/extension-guides/tools)
+- [FastMCP Protocol Specification](https://fastmcp.dev/docs)
+- [MCP Status API Documentation](./docs/api-reference.md#status-management)
+
+## Current Status
+
+The extension currently provides:
+- Full FastMCP protocol implementation with SSE transport
+- Basic extension discovery and registration
+- Command execution pipeline
+- Status monitoring and visualization
+- Real-time session tracking
+
+Planned enhancements:
+- Enhanced security features
+- Extended tool capabilities mapping
+- Performance optimizations
+- Advanced error handling

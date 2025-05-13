@@ -201,7 +201,30 @@ The MCP server provides a status bar item that shows real-time server status:
 
 ## Connection Handling
 
+The MCP server now uses Server-Sent Events (SSE) for communication:
+
 - Server runs on port 3000 by default (configurable)
-- WebSocket protocol for real-time communication
-- Automatic connection error handling and recovery
-- Clean session termination on connection close
+- SSE-based transport for real-time, unidirectional communication
+- Automatic reconnection handling with backoff
+- Clean session management and termination
+- Efficient event streaming with lower overhead than WebSocket
+- Better compatibility with firewalls and proxies
+
+### SSE Event Types
+
+- `connect` - Emitted when a client connects
+- `disconnect` - Emitted when a client disconnects
+- `message` - Standard message event
+- `error` - Error event with details
+- `stateChanged` - Server state change notifications
+- `requestStart`/`requestEnd` - Request lifecycle events
+
+### FastMCP Integration
+
+The server is built on FastMCP framework which provides:
+
+- Standardized tool definitions and execution
+- Built-in parameter validation
+- Automatic schema generation
+- Type-safe communication protocols
+- Efficient event handling and streaming

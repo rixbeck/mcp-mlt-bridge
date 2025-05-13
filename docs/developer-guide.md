@@ -30,6 +30,23 @@ cd mcp-lmt-bridge
 ```bash
 npm install
 ```
+### Environment Variables
+
+This project requires several environment variables to be set up for full functionality. A `.env.example` file is provided as a template.
+
+1. Copy the example file to create your local configuration:
+
+```bash
+cp .env.example .env
+```
+
+2. Configure the following variables in your `.env` file:
+
+- `DBCODE_AUTH_TOKEN`: Authentication token for DBCode service
+- `FIGMA_API_KEY`: API key for accessing Figma designs
+- `GITLAB_PERSONAL_ACCESS_TOKEN`: Personal access token with API scope for GitLab integration
+
+Note: The `.env` file is automatically excluded from version control to protect sensitive information.
 
 ### VSCode Setup
 
@@ -152,9 +169,57 @@ console.log('Debug message');
 console.error('Error message');
 ```
 
+## Communication Patterns
+
+### SSE-Based Communication
+
+The MCP server uses Server-Sent Events (SSE) for efficient, real-time communication:
+
+```typescript
+// Server setup with SSE transport
+const server = new FastMCP({
+    name: 'LMT Bridge',
+    version: '1.0.0'
+});
+
+await server.start({
+    transportType: 'sse',
+    sse: {
+        endpoint: '/sse',
+        port: 3000
+    }
+});
+```
+
+Key benefits of SSE:
+- Lightweight, unidirectional communication
+- Automatic reconnection handling
+- Native browser support
+- Better proxy compatibility
+- Reduced overhead compared to WebSocket
+
+### Event Handling
+
+```typescript
+// Server-side event handling
+server.on('connect', (event: {session: any}) => {
+    console.log('Client connected:', event.session);
+});
+
+server.on('disconnect', (event: {session: any}) => {
+    console.log('Client disconnected:', event.session);
+});
+
+// Client-side event handling
+const eventSource = new EventSource('http://localhost:3000/sse');
+eventSource.onmessage = (event) => {
+    console.log('Received:', event.data);
+};
+```
+
 ## Status Bar Integration
 
-The MCP-LMT-Bridge includes a status bar integration that provides real-time server status updates and interactive commands.
+The MCP-LMT-Bridge includes a comprehensive status monitoring system that provides real-time server status updates and interactive commands.
 
 ### Status Manager Implementation
 

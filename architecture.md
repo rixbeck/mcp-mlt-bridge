@@ -24,10 +24,12 @@ graph TB
         LMT --> Tools[Tool-Enabled Extensions]
         
         subgraph "MCP-LMT-Bridge"
-            Server[MCP Server] --> Discovery[Extension Discovery]
+            Server[FastMCP Server] --> Discovery[Extension Discovery]
             Discovery --> Registry[Extension Registry]
             Server --> Executor[Command Executor]
             Registry --> Executor
+            Server --> Status[Status Manager]
+            Status --> UI[VS Code UI]
         end
     end
 ```
@@ -47,12 +49,15 @@ graph TB
 ```mermaid
 classDiagram
     class MCPServer {
-        -extensionRegistry: ExtensionRegistry
-        -commandExecutor: CommandExecutor
-        +start()
+        -server: FastMCP
+        -registry: ExtensionRegistry
+        -serverPort: number
+        -activeSessions: number
+        +start(port?: number)
         +stop()
-        +handleRequest(request: MCPRequest)
-        -validateRequest(request: MCPRequest)
+        +addTool(tool: Tool)
+        +getPort()
+        +getSessionCount()
     }
     
     class ExtensionRegistry {
@@ -142,15 +147,18 @@ interface ToolMapping {
 ```mermaid
 sequenceDiagram
     participant AI as AI Extension
-    participant MCP as MCP Server
+    participant MCP as FastMCP Server
     participant Registry as Extension Registry
     participant Tool as LMT Tool
+    participant Status as Status Manager
     
     AI->>MCP: Execute command
     MCP->>Registry: Lookup tool
     Registry-->>MCP: Tool info
     MCP->>Tool: Translate & execute
     Tool-->>MCP: Results
+    MCP->>Status: Update status
+    Status->>UI: Update UI
     MCP->>AI: Formatted response
 ```
 

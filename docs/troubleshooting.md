@@ -48,6 +48,8 @@ code --install-extension mcp-lmt-bridge-0.1.0.vsix
 - "Connection refused" errors
 - Tools not appearing in the extension
 - Timeout errors when executing commands
+- SSE connection failures
+- Status bar showing "Stopped" state
 
 **Solutions:**
 
@@ -98,6 +100,75 @@ sudo ufw allow 3000/tcp
 2. Check session timeout settings in server:
     - Default session timeout: 30 minutes
     - Sessions are cleaned up every minute
+
+### Status Monitoring Issues
+
+#### Issue: Status Bar Not Updating
+
+**Symptoms:**
+- Status bar shows incorrect server state
+- Status updates not reflecting server activity
+- Missing status bar icons or commands
+
+**Solutions:**
+
+1. Check Status Manager registration:
+```typescript
+// Verify status manager initialization
+const statusManager = new MCPStatusManager(server);
+context.subscriptions.push(statusManager);
+```
+
+2. Enable status debug logging:
+```json
+{
+    "mcp-lmt-bridge.statusBar.debug": true
+}
+```
+
+3. Verify event listeners:
+```typescript
+// Check event subscriptions
+server.on('stateChanged', (state) => {
+    console.log('Server state changed:', state);
+});
+```
+
+#### Issue: SSE Connection Problems
+
+**Symptoms:**
+- Frequent disconnections
+- Missing server events
+- Delayed status updates
+- "EventSource failed" errors
+
+**Solutions:**
+
+1. Check SSE endpoint configuration:
+```typescript
+await server.start({
+    transportType: 'sse',
+    sse: {
+        endpoint: '/sse',
+        port: 3000
+    }
+});
+```
+
+2. Enable SSE debug logging:
+```json
+{
+    "mcp-lmt-bridge.sse.debug": true
+}
+```
+
+3. Monitor SSE connection status:
+```typescript
+const eventSource = new EventSource('http://localhost:3000/sse');
+eventSource.onerror = (error) => {
+    console.error('SSE error:', error);
+};
+```
 
 ### Tool Execution Issues
 

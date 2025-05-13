@@ -234,17 +234,24 @@ npm run package
 graph TB
     subgraph "VSCode Environment"
         AI[AI Chat Extensions] --> MCP[MCP-LMT-Bridge]
-        MCP --> LMT[LanguageModelTools API]
-        LMT --> Tools[Tool-Enabled Extensions]
+        MCP --> FastMCP[FastMCP Framework]
+        FastMCP --> Tools[Tool-Enabled Extensions]
         
         subgraph "MCP-LMT-Bridge"
-            Server[MCP Server] --> Discovery[Extension Discovery]
+            Server[SSE Server] --> Discovery[Extension Discovery]
             Discovery --> Registry[Extension Registry]
-            Server --> Executor[Command Executor]
-            Registry --> Executor
+            Server --> StatusMgr[Status Manager]
+            Registry --> Executor[Command Executor]
+            StatusMgr --> UI[Status Bar UI]
         end
     end
 ```
+
+Key Components:
+- **FastMCP Framework**: Provides standardized tool definitions, execution, and SSE-based communication
+- **SSE Server**: Handles real-time event streaming and client connections
+- **Status Manager**: Real-time monitoring and UI updates for server state
+- **Extension Registry**: Dynamic tool discovery and registration
 
 ### Testing Guidelines
 
